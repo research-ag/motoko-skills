@@ -11,15 +11,14 @@ type: reference
 ## AI Quick Checklist (Do Not Skip)
 
 1) Versions
-- Ensure dfx 0.28+
+- Ensure dfx 0.31+
 - Confirm repo compiles before starting
 - In mops.toml add core = "2.2.0"
 - update moc in mops.toml to "1.3.0" in [toolchain] and [requirements] sections.
-- if wasmtime is present in mops.toml, upgrade it to at least "40.0.0"
+- if wasmtime is present in mops.toml, upgrade it to at least "42.0.1"
 - Do NOT remove base dependency until Phase 5 is completed
 
 2) dfx.json Flags (per canister)
-- args: --enhanced-orthogonal-persistence
 - wasm_memory_persistence: keep
 
 3) Mechanical Renames (Phases 1–2)
@@ -64,11 +63,10 @@ mops.toml (dependency staging)
 
 dfx.json (per canister)
 - type: "motoko"
-- args: "--enhanced-orthogonal-persistence"
 - wasm_memory_persistence: "keep"
 
 Requires:
-- dfx 0.28+
+- dfx 0.31+
 - moc 1.3.0
 
 ---
@@ -179,9 +177,10 @@ Use dot-notation where possible. For example, replace:
 Array.length(arr) with arr.length()
 Array.find(arr, f) with arr.find(f)
 VarArray.toArray(arr) with arr.toArray()
-VarArray.fromArray(arr) with arr.fromArray()
 
 Some things that do not have a dot notation:
+Array.fromVarArray
+VarArray.fromArray
 Blob.fromArray
 Blob.fromVarArray
 
