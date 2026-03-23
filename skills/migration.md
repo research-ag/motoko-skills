@@ -135,7 +135,7 @@ Bulk rename:
     ```
   - If you import 3 or more types from `Types`, import the whole module: `import Types "mo:core/Types";` and use `Types.Result<...>`, `Types.Iter<...>`, etc.
 
-Use sed commands to replace all occurences at once
+Use sed commands to replace all occurrences at once
 
 Removed without direct replacement (manual fix required):
 - AssocList, Buffer, Hash, HashMap, Heap, IterType, None, Prelude, RBTree, Trie, TrieMap, TrieSet

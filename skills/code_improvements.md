@@ -1,6 +1,6 @@
 ---
 name: Motoko mo:core Code Improvements Skill
-description: Optional, modular cleanups and style improvements to apply on new mo:core projects (or after mo:core migration). Covers import ordering, dot‑notation, unused import cleanup, and single‑expression return removal, with detection checks and automation recipes.
+description: Optional, modular cleanups and style improvements to apply on new mo:core projects (or after mo:core migration). Covers import ordering, unused import cleanup, and single‑expression return removal, with detection checks and automation recipes. For dot‑notation guidance, see `skills/motoko-dot-notation-migration.md`. 
 type: reference
 ---
 
@@ -33,8 +33,8 @@ Safety first:
 
 2) Order of improvements (recommended)
 - A. Remove `return` in single‑expression functions
-- B. Convert to dot‑notation where available
-- C. Ensure necessary `mo:core` imports exist for newly used dot‑notation
+- B. Convert to dot‑notation where available — see Motoko Dot‑Notation Migration Skill (`skills/motoko-dot-notation-migration.md`)
+- C. Ensure necessary `mo:core` imports for dot‑notation — see Motoko Dot‑Notation Migration Skill (import mapping)
 - D. Clean up unused imports (be conservative re: dot‑notation)
 - E. Aggregate imports into three sections and sort each section alphabetically per file (1) `mo:core/...` (2) other `mo:*/...` from mops/third‑party (3) local project modules)
 
@@ -72,79 +72,21 @@ Automation (example)
 
 ---
 
-## B) Prefer dot‑notation where available
+## B) Dot‑notation conversion
 
-Rationale
-- `mo:core` exposes many APIs as methods usable via dot‑notation on values. This improves readability and local discoverability.
+For all Motoko dot‑notation rules, automation scripts, and pitfalls, see the dedicated skill:
+- skills/motoko-dot-notation-migration.md
 
-Examples (illustrative, not exhaustive)
-```motoko
-// Arrays
-Array.fromVarArray  → Array.fromVarArray           // factory stays on module
-Array.length(a)     → a.length()
-Array.find(a, f)    → a.find(f)
-Array.concat(a, b)  → a.concat(b)
-Array.fromVarArray(v) → v.toArray()
-Array.toVarArray(a)   → a.toVarArray()
-Array.sliceToArray(a, s, e) → a.sliceToArray(s, e)
-
-// VarArray
-VarArray.repeat(x, n)  → VarArray.repeat(x, n)     // factory stays on module
-VarArray.fromArray     → VarArray.fromArray        // factory stays on module
-VarArray.size(v)       → v.size()
-VarArray.clear(v)      → v.clear()
-
-// Map (mutable in core)
-Map.empty<K,V>()          → Map.empty<K,V>()       // factory stays on module
-Map.size(m)               → m.size()
-m.add(cmp, k, v)          // already method style in core
-m.get(cmp, k)             // already method style in core
-m.entries()               // iterator style
-
-// Set (mutable in core)
-Set.empty<T>()            → Set.empty<T>()         // factory stays on module
-Set.size(s)               → s.size()
-
-// List (mutable in core)
-List.empty<T>()           → List.empty<T>()        // factory stays on module
-List.add(l, x)            → l.add(x)               // mutates; returns void
-List.get(l, i)            → l.get(i)
-
-// Text
-Text.toLower(t)           → t.toLower()
-Text.toUpper(t)           → t.toUpper()
-Text.size(t)              → t.size()
-Text.contains(t, sub)     → t.contains(sub)
-```
-
-Cautions
-- Some factory/constructor functions remain on the module (e.g., `Array.fromIter`, `Array.fromVarArray`, `VarArray.fromArray`, `Map.empty`). Do not force dot‑notation when it does not exist.
-- Blob conversions have no dot‑notation: keep `Blob.fromArray` and `Blob.fromVarArray` as module calls; there is no `blob.toArray()` or similar. Ensure `import Blob "mo:core/Blob";` when using them.
-- Ensure the backing module for a dot call is imported (see Section C and D below). Without an `import Array "mo:core/Array";` in scope, `a.length()` will fail, even if `Array.*` names are not otherwise referenced.
-
-Audit helpers
-- Grep for likely pre‑dot calls to convert:
-  - `.values()` usage from migration: `grep -rn "\\.values()" . --include="*.mo" | grep -v \.mops`
-  - Arrays: `grep -rn "Array\\.(length|find|concat|fromVarArray|toVarArray|sliceToArray)" . --include="*.mo" | grep -v \.mops`
-  - Text: `grep -rn "Text\\.(toLower|toUpper|size|contains)" . --include="*.mo" | grep -v \.mops`
+This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section E).
 
 ---
 
-## C) Ensure necessary imports for dot‑notation
+## C) Dot‑notation import requirements
 
-Why this matters
-- Dot‑notation in Motoko requires the corresponding module be in scope. After converting `Array.length(a)` → `a.length()`, the `Array` module may appear unused by grep, but it is still required.
+For import mapping and rules related to dot‑notation, use the dedicated skill:
+- skills/motoko-dot-notation-migration.md
 
-Minimal import mapping (keep if any such dot‑use appears)
-- `a.length(), a.find(...), a.concat(...), a.sliceToArray(...)` → keep `import Array "mo:core/Array";`
-- `v.size(), v.clear(), v.toArray()` on var arrays → keep `import VarArray "mo:core/VarArray";`
-- `m.size(), m.entries(), m.add/get/remove/...` on core map → keep `import Map "mo:core/Map";`
-- `s.size(), s.add/delete/contains/...` on core set → keep `import Set "mo:core/Set";`
-- `l.add/get/...` on core list → keep `import List "mo:core/List";`
-- `t.toLower(), t.toUpper(), t.size(), t.contains(...)` → keep `import Text "mo:core/Text";`
-
-Heuristic script idea
-- When cleaning imports (Section D), scan each file for these dot‑patterns. If present, mark the corresponding module as required even if no `Module.` references remain.
+This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section E (import ordering).
 
 ---
 
@@ -166,7 +108,7 @@ Approaches
 3) Script‑assisted conservative removal
    - Write a simple script that:
      - Parses each `import ... "mo:core/XYZ";`
-     - Searches file for either `XYZ.` or any of the known dot‑patterns mapped to `XYZ` (Section C)
+     - Searches file for either `XYZ.` or any of the known dot‑patterns mapped to `XYZ` (see Dot‑Notation Migration Skill import mapping)
      - If neither is found, flag the line as removable
    - Manually review flagged lines before deletion
 
@@ -239,16 +181,14 @@ These are optional starting points. Prefer editor‑integrated refactors when av
 rg -n --glob '!**/.mops/**' --glob '**/*.mo' "func [A-Za-z_][A-Za-z0-9_]*\(.*\) *:.*\{ *return .*; *};"
 ```
 
-2) Spot pre‑dot candidates
-```bash
-rg -n --glob '!**/.mops/**' --glob '**/*.mo' 'Array\.(length|find|concat|fromVarArray|toVarArray|sliceToArray)' 
-rg -n --glob '!**/.mops/**' --glob '**/*.mo' 'Text\.(toLower|toUpper|size|contains)'
-```
+2) Dot‑notation conversion & candidate detection
+- See the dedicated skill for full automation and grep recipes:
+  - skills/motoko-dot-notation-migration.md
 
 3) Flag possibly unused core imports (conservative)
 ```bash
 # Rough heuristic: list imports, then search for name or dot‑patterns
-rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";' -or '$1' -r ''
+rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";' -o -r '$1'
 # For each file, ensure presence of module references OR mapped dot‑patterns before removal
 ```
 
@@ -262,9 +202,9 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 1) Confirm the project builds on `mo:core` before starting improvements.
 2) Work file‑by‑file. For each file:
    - A. Remove single‑expression `return` forms
-   - B. Convert obvious `Module.func(value, ...)` to `value.func(...)` where supported
-   - C. Ensure required imports for any introduced dot‑notation remain
-   - D. Remove truly unused imports (respect Section C mapping)
+   - B. Apply dot‑notation per skills/motoko-dot-notation-migration.md
+   - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/motoko-dot-notation-migration.md)
+   - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
    - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
 3) After each file: compile; if failure due to missing import, restore and mark mapping
 4) After each category across repo: run a full build and optionally tests
@@ -274,10 +214,9 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 
 ## Edge Cases & Gotchas
 
-- Map/List/Set in `mo:core` are mutable. Dot‑notation like `list.add(x)` or `map.add(cmp, k, v)` mutates in place and returns `()`; do not write `:=` around such calls.
-- Do not force dot‑notation on functions that are only on the module (constructors, converters). Keep module calls for those.
-- Named type imports from `mo:core/Types` do not contribute to dot‑notation. Sorting rules should not intermix `type`‑only named imports with module imports unless you keep them within the same `mo:core` group ordering.
-- Some symbols may be brought in under different aliases. Always map dot‑patterns to the actual path/module, not just the alias.
+- For all dot‑notation behavior, method availability, factories vs methods, and mutability notes, see:
+  - skills/motoko-dot-notation-migration.md
+- When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section E for ordering rules.
 
 ---
 
@@ -291,30 +230,7 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 
 ---
 
-## Appendix: Minimal Dot‑Notation Map (starter)
+## Appendix: Dot‑notation reference
 
-This list is intentionally short and safe. Extend as you confirm more methods in your codebase version of `mo:core`.
-
-- Array (mo:core/Array)
-  - `a.length()`
-  - `a.find(f)`
-  - `a.concat(b)`
-  - `a.sliceToArray(s, e)`
-  - `v.toArray()` / `a.toVarArray()` when `v` is VarArray / `a` is Array
-
-- VarArray (mo:core/VarArray)
-  - `v.size()`, `v.clear()`, `v.toArray()`, `v.push(x)` (if present in your version)
-
-- Map (mo:core/Map)
-  - `m.size()`, `m.entries()`, `m.values()`, `m.add(...)`, `m.get(...)`, `m.delete(...)`, `m.remove(...)`, `m.take(...)`
-
-- Set (mo:core/Set)
-  - `s.size()`, `s.add(...)`, `s.contains(...)`, `s.delete(...)`, `s.remove(...)`
-
-- List (mo:core/List)
-  - `l.add(x)`, `l.get(i)`
-
-- Text (mo:core/Text)
-  - `t.toLower()`, `t.toUpper()`, `t.size()`, `t.contains(sub)`
-
-Update this list as your project confirms additional methods that support dot‑notation in your locked `mo:core` version.
+For the complete, maintained dot‑notation catalog, automation scripts, and import mapping, see:
+- skills/motoko-dot-notation-migration.md
