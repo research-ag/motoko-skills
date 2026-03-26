@@ -1,0 +1,113 @@
+---
+name: motoko-benchmarks-generation
+description: "How to write benchmarks in Motoko using bench‑helper. Covers project setup (mops.toml), bench file layout in bench/*.bench.mo, the Bench.Schema rows/cols model, and safe patterns for encode/decode, hashing, crypto, and allocation benches."
+metadata:
+  title: "Motoko Benchmarks with bench‑helper"
+  category: Motoko
+---
+
+# Motoko Benchmarks with bench‑helper
+
+## What This Is
+
+`bench-helper` is a tiny Motoko library that standardizes how to write benchmarks.
+You describe a benchmark using a small schema (name, rows, cols), provide a `run(row, col)`
+function, and return a versioned bench record. Each file under `bench/*.bench.mo` defines one
+benchmark module. A runner can then discover and execute all benches consistently.
+
+## Prerequisites
+
+mops.toml (add dependencies and toolchain)
+
+If you already have a `mops.toml`, just add `bench-helper` under `[dev-dependencies]`.
+If your project still uses `mo:base` instead of `mo:core`, you can keep it — benches themselves can be written with
+`mo:base` without affecting your runtime canisters.
+
+## Directory & File Conventions
+
+- Put benches under `bench/` at the repo root.
+- Name files with the suffix `.bench.mo`, one benchmark per file; for example: `bench/base64.bench.mo`.
+- Each bench file is a Motoko `module { ... }` that exposes a single `public func init() : Bench.V1` function.
+- Inside `init`, construct a `Bench.Schema` and return `Bench.V1(schema, run)` where
+  `run : (rowIndex : Nat, colIndex : Nat) -> ()` performs the measured operation.
+
+Minimal skeleton
+
+```motoko
+import Array "mo:core/Array";
+import Text  "mo:core/Text";
+import Bench "mo:bench-helper";
+
+module {
+  public func init() : Bench.V1 {
+    let schema : Bench.Schema = {
+      name = "My bench";
+      description = "What this bench measures";
+      rows = ["operation A", "operation B"];  // your row labels
+      cols = ["size 16", "size 64", "size 256"]; // your column labels
+    };
+
+    // Prepare inputs outside of `run` so they are not re-created on every iteration
+    let inputs : [[Nat8]] = [
+      Array.init<Nat8>(16, 0),
+      Array.init<Nat8>(64, 0),
+      Array.init<Nat8>(256, 0),
+    ];
+
+    func run(ri : Nat, ci : Nat) {
+      switch (ri) {
+        case (0) {
+          // operation A @ inputs[ci]
+          ignore inputs[ci].size();
+        };
+        case (1) {
+          // operation B @ inputs[ci]
+          ignore Text.size("noop");
+        };
+        case (_) {};
+      };
+    };
+
+    Bench.V1(schema, run);
+  };
+};
+```
+
+Note: if you're not using "core" dependency, replace "mo:core" imports with "mo:base"
+
+## How It Works
+
+- Schema
+    - `name` and `description` describe the bench.
+    - `rows` enumerate different operations or variants you measure (e.g., "encode", "decode").
+    - `cols` enumerate different input categories (e.g., message sizes).
+- Runner contract
+    - You return a versioned record `Bench.V1(schema, run)`; the runner calls `run(rowIndex, colIndex)` many times to
+      record timings.
+    - Side effects/results inside `run` should be consumed (e.g., `ignore ...`) to prevent dead‑code elimination.
+
+## Common Pitfalls
+
+1. Rows/cols mismatch
+    - If you add a new row label, also add a corresponding `case` in `run`; otherwise that row will do nothing.
+2. Doing expensive setup inside `run`
+    - Generate inputs once in `init` and capture them in closures. Only do the core operation in `run`.
+3. Forgetting to consume results
+    - Use `ignore` to consume return values; otherwise the compiler might drop the call as dead code.
+4. Non‑determinism and timing noise
+    - Keep `run` free of logging/printing and random allocation; keep GC pressure comparable across rows.
+
+## Verify It Works
+
+The exact runner/command may vary depending on your environment. After adding `bench-helper` to `mops.toml` and writing
+`.bench.mo` files:
+
+- Ensure your project resolves dependencies:
+  ```bash
+  mops install
+  ```
+- Run benchmarks:
+  ```bash
+  mops bench
+  ```
+- Consult the `bench-helper` package README for the latest recommended runner command for your toolchain/version.
