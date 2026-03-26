@@ -65,6 +65,7 @@ Each skill is a directory under `skills/**/SKILL.md` with frontmatter that the C
 - motoko-dot-notation-migration — Convert old `Module.func(self, ...)` style calls to `self.func(...)` dot notation for mo:core.
 - motoko-core-code-improvements — Optional cleanups for mo:core projects (import order, unused imports, return removal, etc.).
 - motoko-general-style-guidelines — Comprehensive Motoko style guidelines to improve readability and consistency.
+- motoko-performance-optimizations — General performance optimization techniques (allocation reduction, fixed-width arithmetic, block processing, efficient Text building).
 
 ## Authoring New Skills
 
