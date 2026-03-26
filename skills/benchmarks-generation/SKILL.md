@@ -43,8 +43,8 @@ module {
     let schema : Bench.Schema = {
       name = "My bench";
       description = "What this bench measures";
-      rows = ["operation A", "operation B"];  // your row labels
-      cols = ["size 16", "size 64", "size 256"]; // your column labels
+      rows = ["size 16", "size 64", "size 256"]; // your row labels
+      columns = ["operation A", "operation B"];  // your column labels
     };
 
     // Prepare inputs outside of `run` so they are not re-created on every iteration
@@ -54,21 +54,20 @@ module {
       Array.init<Nat8>(256, 0),
     ];
 
-    func run(ri : Nat, ci : Nat) {
-      switch (ri) {
-        case (0) {
-          // operation A @ inputs[ci]
-          ignore inputs[ci].size();
-        };
-        case (1) {
-          // operation B @ inputs[ci]
-          ignore Text.size("noop");
-        };
-        case (_) {};
-      };
-    };
+    // Build a table of routines to measure: routines[row][col] : () -> ()
+    let routines : [[() -> ()]] = Array.tabulate(
+      rows.size(),
+      func(ri) {
+        let input = inputs[ri]; // capture precomputed input
+        [
+          func() { ignore input.size() },    // operation A @ inputs[ri]
+          func() { ignore input.toArray() }, // operation B @ inputs[ri]
+        ]
+      },
+    );
 
-    Bench.V1(schema, run);
+    // The runner calls this many times; keep it tiny and branch-free.
+    Bench.V1(schema, func(ri : Nat, ci : Nat) = routines[ri][ci]());
   };
 };
 ```
@@ -89,13 +88,17 @@ Note: if you're not using "core" dependency, replace "mo:core" imports with "mo:
 ## Common Pitfalls
 
 1. Rows/cols mismatch
-    - If you add a new row label, also add a corresponding `case` in `run`; otherwise that row will do nothing.
+    - Ensure your `routines` table has dimensions `rows.size() x cols.size()`. If you add or remove a row/col label, update how you build `routines`; otherwise some cells will be no‑ops.
 2. Doing expensive setup inside `run`
     - Generate inputs once in `init` and capture them in closures. Only do the core operation in `run`.
 3. Forgetting to consume results
     - Use `ignore` to consume return values; otherwise the compiler might drop the call as dead code.
 4. Non‑determinism and timing noise
     - Keep `run` free of logging/printing and random allocation; keep GC pressure comparable across rows.
+
+## More examples
+
+bench-helper reference benches: https://github.com/research-ag/bench-helper/tree/main/bench
 
 ## Verify It Works
 
