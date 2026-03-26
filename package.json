@@ -1,20 +1,26 @@
 {
-  "name": "motoko-skills",
-  "version": "1.0.0",
+  "name": "@research-ag/motoko-skills",
+  "version": "0.0.1",
   "description": "A set of skills for AI agents for working with motoko code",
   "keywords": [
     "motoko",
     "ai",
     "skills"
   ],
-  "homepage": "https://github.com/research-ag/motoko-ai-helpers#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/research-ag/motoko-skills#readme",
   "bugs": {
-    "url": "https://github.com/research-ag/motoko-ai-helpers/issues"
+    "url": "https://github.com/research-ag/motoko-skills/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/research-ag/motoko-ai-helpers.git"
+    "url": "git+https://github.com/research-ag/motoko-skills.git"
   },
   "license": "Apache-2.0",
-  "author": "Research AG"
+  "author": "MR Research AG",
+  "files": [
+    "skills"
+  ]
 }
