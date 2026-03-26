@@ -1,5 +1,5 @@
 ---
-name: Motoko mo:base → mo:core Migration Skill
+name: motoko-base-to-core-migration
 description: Complete, AI-ready playbook to migrate Motoko projects from mo:base to mo:core — phases, renames, data structure changes, agent strategy, verification scripts, upgrade tests, and production rollout.
 ---
 

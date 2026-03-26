@@ -1,5 +1,5 @@
 ---
-name: Motoko dot notation migration
+name: motoko-dot-notation-migration
 description: Use new dot-notation syntax in projects with mo:core dependency
 ---
 

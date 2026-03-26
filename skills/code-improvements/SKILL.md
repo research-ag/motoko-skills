@@ -1,5 +1,5 @@
 ---
-name: Motoko mo:core Code Improvements Skill
+name: motoko-core-code-improvements
 description: "Optional, modular cleanups and style improvements to apply on new mo:core projects (or after mo:core migration). Covers import ordering, unused import cleanup, and single‑expression return removal, with detection checks and automation recipes"
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Motoko general style guidelines
+name: motoko-general-style-guidelines
 description: Load when working with contents in *.mo files
 ---
 

@@ -1,11 +1,20 @@
 ---
-name: <skill-name>
-description: "<What does this skill do AND when should an agent load it? Include specific keywords. See CONTRIBUTING.md for guidance.>"
+name: <skill-slug-kebab-case-lowercase>
+description: "<What does this skill do AND when should an agent load it? Include specific keywords.>"
 compatibility: "<Environment requirements — e.g., icp-cli >= 0.1.0, network access for HTTPS calls>"
 metadata:
   title: "<Display Name>"
   category: <CategoryName>
+  internal: false
 ---
+
+<!--
+REQUIRED by skills CLI:
+- name: lowercase, kebab-case unique id (e.g., "motoko-dot-notation-migration")
+- description: one concise sentence about what the skill does and when to use it
+OPTIONAL:
+- metadata.internal: set true to hide skill from normal discovery (useful for WIP)
+-->
 
 # <Skill Title>
 
