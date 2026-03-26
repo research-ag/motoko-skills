@@ -1,4 +1,9 @@
-# Motoko Dot-Notation Migration Skill
+---
+name: Motoko dot notation migration
+description: Use new dot-notation syntax in projects with mo:core dependency
+---
+
+# Motoko dot notation migration
 
 ## Purpose
 
@@ -681,9 +686,9 @@ if __name__ == '__main__':
    ```
 
 7. **If tests fail**, check for:
-   - Operator precedence issues (missing parens around infix expressions)
-   - Type parameter comma splitting (the `<>` depth tracking bug)
-   - Functions that shouldn't have been converted (not in the `self` list)
+    - Operator precedence issues (missing parens around infix expressions)
+    - Type parameter comma splitting (the `<>` depth tracking bug)
+    - Functions that shouldn't have been converted (not in the `self` list)
 
 8. **Clean up**: Delete `convert_dot_notation.py` after all tests pass.
 

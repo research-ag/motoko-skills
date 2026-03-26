@@ -1,11 +1,6 @@
 ---
 name: Motoko mo:core Code Improvements Skill
-description: Optional, modular cleanups and style improvements to apply on new mo:core projects (or after mo:core migration). Covers import ordering, unused import cleanup, and single‑expression return removal, with detection checks and automation recipes. For dot‑notation guidance, see `skills/motoko-dot-notation-migration.md`. 
-type: reference
----
-
-# Skill: Motoko mo:core Code Improvements (Optional)
-
+description: "Optional, modular cleanups and style improvements to apply on new mo:core projects (or after mo:core migration). Covers import ordering, unused import cleanup, and single‑expression return removal, with detection checks and automation recipes"
 ---
 
 ## Purpose & Scope
@@ -33,7 +28,7 @@ Safety first:
 
 2) Order of improvements (recommended)
 - A. Remove `return` in single‑expression functions
-- B. Convert to dot‑notation where available — see Motoko Dot‑Notation Migration Skill (`skills/motoko-dot-notation-migration.md`)
+- B. Convert to dot‑notation where available — see Motoko Dot‑Notation Migration Skill (`skills/dot-notation-migration/SKILL.md`)
 - C. Ensure necessary `mo:core` imports for dot‑notation — see Motoko Dot‑Notation Migration Skill (import mapping)
 - D. Clean up unused imports (be conservative re: dot‑notation)
 - E. Aggregate imports into three sections and sort each section alphabetically per file (1) `mo:core/...` (2) other `mo:*/...` from mops/third‑party (3) local project modules)
@@ -75,7 +70,7 @@ Automation (example)
 ## B) Dot‑notation conversion
 
 For all Motoko dot‑notation rules, automation scripts, and pitfalls, see the dedicated skill:
-- skills/motoko-dot-notation-migration.md
+- skills/dot-notation-migration/SKILL.md
 
 This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section E).
 
@@ -84,7 +79,7 @@ This file intentionally does not duplicate those instructions. Apply dot‑notat
 ## C) Dot‑notation import requirements
 
 For import mapping and rules related to dot‑notation, use the dedicated skill:
-- skills/motoko-dot-notation-migration.md
+- skills/dot-notation-migration/SKILL.md
 
 This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section E (import ordering).
 
@@ -100,17 +95,17 @@ Reality check
 
 Approaches
 1) Editor‑guided
-   - Open the workspace in VSCode. For each `*.mo` file, accept quick‑fix to remove imports marked as unused. Review diffs.
+    - Open the workspace in VSCode. For each `*.mo` file, accept quick‑fix to remove imports marked as unused. Review diffs.
 
 2) Compiler/LSP‑assisted batch
-   - Use the Motoko language server via the VSCode extension to surface all diagnostics; apply code actions in batches where supported.
+    - Use the Motoko language server via the VSCode extension to surface all diagnostics; apply code actions in batches where supported.
 
 3) Script‑assisted conservative removal
-   - Write a simple script that:
-     - Parses each `import ... "mo:core/XYZ";`
-     - Searches file for either `XYZ.` or any of the known dot‑patterns mapped to `XYZ` (see Dot‑Notation Migration Skill import mapping)
-     - If neither is found, flag the line as removable
-   - Manually review flagged lines before deletion
+    - Write a simple script that:
+        - Parses each `import ... "mo:core/XYZ";`
+        - Searches file for either `XYZ.` or any of the known dot‑patterns mapped to `XYZ` (see Dot‑Notation Migration Skill import mapping)
+        - If neither is found, flag the line as removable
+    - Manually review flagged lines before deletion
 
 Audit helpers
 - After cleanup, search for "import" lines whose module name never appears and no mapped dot‑pattern is present.
@@ -125,11 +120,11 @@ Why
 
 Sections (in this order, each separated by a single blank line)
 1) mo:core imports
-   - All imports whose path starts with "mo:core/..." (including `mo:core/Types`).
+    - All imports whose path starts with "mo:core/..." (including `mo:core/Types`).
 2) Other mo:* third‑party imports (mops or similar)
-   - Any `mo:...` imports that are not `mo:core/...` (e.g., `mo:uuid/UUID`, `mo:sha2/SHA256`, etc.).
+    - Any `mo:...` imports that are not `mo:core/...` (e.g., `mo:uuid/UUID`, `mo:sha2/SHA256`, etc.).
 3) Local project modules
-   - Relative path imports such as "../..." and "./...".
+    - Relative path imports such as "../..." and "./...".
 
 Sorting rules (apply within each section independently)
 - Sort alphabetically by the quoted path string.
@@ -183,7 +178,7 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' "func [A-Za-z_][A-Za-z0-9_]*\(.*\) 
 
 2) Dot‑notation conversion & candidate detection
 - See the dedicated skill for full automation and grep recipes:
-  - skills/motoko-dot-notation-migration.md
+    - skills/dot-notation-migration/SKILL.md
 
 3) Flag possibly unused core imports (conservative)
 ```bash
@@ -201,11 +196,11 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 
 1) Confirm the project builds on `mo:core` before starting improvements.
 2) Work file‑by‑file. For each file:
-   - A. Remove single‑expression `return` forms
-   - B. Apply dot‑notation per skills/motoko-dot-notation-migration.md
-   - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/motoko-dot-notation-migration.md)
-   - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
-   - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
+    - A. Remove single‑expression `return` forms
+    - B. Apply dot‑notation per skills/dot-notation-migration/SKILL.md
+    - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/dot-notation-migration/SKILL.md)
+    - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
+    - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
 3) After each file: compile; if failure due to missing import, restore and mark mapping
 4) After each category across repo: run a full build and optionally tests
 5) Produce a short report of changes and any edge cases deferred for manual review
@@ -215,7 +210,7 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 ## Edge Cases & Gotchas
 
 - For all dot‑notation behavior, method availability, factories vs methods, and mutability notes, see:
-  - skills/motoko-dot-notation-migration.md
+    - skills/dot-notation-migration/SKILL.md
 - When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section E for ordering rules.
 
 ---
@@ -224,8 +219,8 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 
 - Build all canisters successfully after changes.
 - Run static audits:
-  - No `import` lines flagged unused by editor or heuristic scripts (after accounting for dot‑notation needs).
-  - Spot check: arrays, maps, sets, text operations use dot‑notation where natural.
+    - No `import` lines flagged unused by editor or heuristic scripts (after accounting for dot‑notation needs).
+    - Spot check: arrays, maps, sets, text operations use dot‑notation where natural.
 - Diffs remain mechanical; no public API or behavioral changes.
 
 ---
@@ -233,4 +228,4 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 ## Appendix: Dot‑notation reference
 
 For the complete, maintained dot‑notation catalog, automation scripts, and import mapping, see:
-- skills/motoko-dot-notation-migration.md
+- skills/dot-notation-migration/SKILL.md
