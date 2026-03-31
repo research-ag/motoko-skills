@@ -1,10 +1,10 @@
-# Motoko AI Helpers — Agent Skills
+# Motoko-skills
 
 This repository provides reusable Agent Skills for Motoko development. These skills are compatible with the `skills` CLI, so you can list and install them into your coding agents (Cursor, Claude Code, Junie, Windsurf, and many more).
 
 Learn more about the ecosystem and CLI: https://skills.sh
 
-## Quick Start
+## Quick Start:
 
 List skills available in this repository (no install yet):
 

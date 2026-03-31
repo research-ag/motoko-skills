@@ -45,7 +45,7 @@ Acceptance Criteria
 - No behavior changes; public interfaces unchanged unless stylistic
 - Imports are aggregated into three sections — (1) `mo:core/...`, (2) other `mo:*/...` from mops/third‑party, (3) local project modules — and each section is alphabetized; no truly unused `import`s remain
 - Dot‑notation is consistently used where directly supported
-- Constant ASCII strings are assigned directly to `Blob` where possible, avoiding redundant `Text.encodeUtf8` calls
+- Constant Text strings are assigned directly to `Blob` where possible, avoiding redundant `Text.encodeUtf8` calls
 
 ---
 
@@ -182,7 +182,7 @@ let b : Blob = "hello";
 ```
 
 Why
-- For constant ASCII strings, the Motoko compiler allows direct assignment to the `Blob` type.
+- For constant Text strings, the Motoko compiler allows direct assignment to the `Blob` type.
 - The result is identical to `Text.encodeUtf8`, but the code is cleaner and avoids an explicit function call.
 
 Examples
@@ -235,7 +235,7 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
     - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/dot-notation-migration/SKILL.md)
     - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
     - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
-    - F. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`
+    - F. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
 3) After each file: compile; if failure due to missing import, restore and mark mapping
 4) After each category across repo: run a full build and optionally tests
 5) Produce a short report of changes and any edge cases deferred for manual review
