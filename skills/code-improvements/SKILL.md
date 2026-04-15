@@ -64,6 +64,36 @@ Notes
 - Only apply when the function body consists of a single `return <expr>;` statement.
 - Do not transform multi‑statement bodies or bodies that include `try`, `label`, `switch`, or `await` leading to different control flow.
 - A function with multiple `return` statements (e.g., early returns in `switch` cases like `return null`) must NOT have any returns removed.
+- **`return switch (...) { ... }` at the end of a function is OK.** Each case block ends with the expression being returned (no `return` keyword inside the cases). This is the preferred style when all cases produce values normally.
+  ```motoko
+  // OK — all cases produce values, no traps or throws
+  return switch (decode(data)) {
+    case (#ok key) { (key.x, key.y) };
+    case (#err msg) { #err(msg) };
+  };
+  ```
+- **Exception: if any case has a return-equivalent statement (`Runtime.trap` or `throw`) that represents a genuine function exit, pull `return` inside the case blocks.** Remove `return` before `switch`, then add `return` only in the case blocks that produce values. Cases with `Runtime.trap` or `throw` do not need `return`. This makes it clear which branches return and which abort:
+  ```motoko
+  // Avoid — trap is hidden inside return switch
+  return switch (decode(data)) {
+    case (#ok key) { (key.x, key.y) };
+    case (#err msg) { Runtime.trap(msg) };
+  };
+
+  // Prefer — return only in value-producing cases
+  switch (decode(data)) {
+    case (#ok key) { return (key.x, key.y) };
+    case (#err msg) { Runtime.trap(msg) };
+  };
+  ```
+- **Unreachable traps are NOT return-equivalent.** If `Runtime.trap("unreachable")` is used, or a comment or message indicates the branch is only reachable through a bug, that trap is not a normal function exit — it's a defensive assertion. In that case, `return switch` is fine and `return` should NOT be pulled inside:
+  ```motoko
+  // OK — the trap just guards an impossible case
+  return switch (Jacobi.fromNat(x, y, 1, curve)) {
+    case (null) Runtime.trap("unreachable");
+    case (?point) point;
+  };
+  ```
 
 Automation (example)
 - Grep candidates: `grep -rn "func \\w\\+(.*) *:.*{ *return .*; *};" . --include="*.mo" | grep -v \.mops`
@@ -403,6 +433,8 @@ Audit helpers
 
 -   For cross-directory imports, relative paths with `../` are required and acceptable.
 
+---
+
 ## F) Aggregate and alphabetize imports by section
 
 Why
@@ -459,7 +491,7 @@ Lightweight automation idea (per file)
 
 ---
 
-## F) Direct string‑to‑Blob assignment for constants
+## G) Direct string‑to‑Blob assignment for constants
 
 Pattern
 ```motoko
