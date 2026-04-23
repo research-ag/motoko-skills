@@ -100,7 +100,7 @@ Char: fromNat32, fromText
 Runtime: trap
 ```
 
-However, `Array.fromVarArray(x)` has a dot-notation equivalent: `x.toArray()` (via `VarArray.toArray`). This is NOT handled by the dot-notation conversion script — it's a separate refactor (see motoko-core-code-improvements skill, Section G).
+However, `Array.fromVarArray(x)` has a dot-notation equivalent: `x.toArray()` (via `VarArray.toArray`). This is NOT handled by the dot-notation conversion script — it's a separate refactor (see motoko-core-code-improvements skill, Section H).
 
 ### 4. Dot-Notation Requires the Type's Module to Be Imported
 
@@ -114,11 +114,11 @@ Common examples where the import looks unused but is required:
 
 If you remove these imports, compilation will fail with `field X does not exist in type` and a hint to import the module.
 
-### 4. String Literals Must Be Skipped
+### 5. String Literals Must Be Skipped
 
 When scanning for operators or commas, skip over string literals (`"..."`) including escaped quotes (`\"`), so operators inside strings don't trigger false positives.
 
-### 5. Numeric Literals Are Safe Without Parens
+### 6. Numeric Literals Are Safe Without Parens
 
 `42.toText()` and `0xFF.toNat()` are valid Motoko — numeric literals can receive dot notation directly. No parens needed.
 

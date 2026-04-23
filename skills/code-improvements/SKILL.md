@@ -365,7 +365,7 @@ if __name__ == '__main__':
 For all Motoko dot‑notation rules, automation scripts, and pitfalls, see the dedicated skill:
 - skills/dot-notation-migration/SKILL.md
 
-This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section E).
+This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section F).
 
 ---
 
@@ -374,7 +374,7 @@ This file intentionally does not duplicate those instructions. Apply dot‑notat
 For import mapping and rules related to dot‑notation, use the dedicated skill:
 - skills/dot-notation-migration/SKILL.md
 
-This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section E (import ordering).
+This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section F (import ordering).
 
 ---
 
@@ -555,15 +555,16 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
     - B. Apply dot‑notation per skills/dot-notation-migration/SKILL.md
     - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/dot-notation-migration/SKILL.md)
     - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
-    - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
-    - F. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
+    - E. Shorten local (sibling) import paths (remove `./` prefix where applicable)
+    - F. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
+    - G. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
 3) After each file: compile; if failure due to missing import, restore and mark mapping
 4) After each category across repo: run a full build and optionally tests
 5) Produce a short report of changes and any edge cases deferred for manual review
 
 ---
 
-## G) Convert `Array.fromVarArray(x)` to `x.toArray()`
+## H) Convert `Array.fromVarArray(x)` to `x.toArray()`
 
 Pattern
 ```motoko
@@ -581,7 +582,7 @@ Notes
 - After conversion, check if `Array` import can be removed (it may still be needed for `Array.tabulate`, `Array.flatten` dot-notation on `[T]`, etc.)
 - Strip optional type params: `Array.fromVarArray<Nat8>(buf)` → `buf.toArray()` (the type is inferred from the var array).
 
-## H) `Array.tabulate` type annotations are usually required
+## I) `Array.tabulate` type annotations are usually required
 
 - Do NOT remove type annotations from `Array.tabulate<T>(...)` calls.
 - The Motoko compiler often cannot infer the element type, especially when the callback uses `fromNat`, arithmetic, or other expressions that could return multiple numeric types.
@@ -594,7 +595,7 @@ Notes
 
 - For all dot‑notation behavior, method availability, factories vs methods, and mutability notes, see:
     - skills/dot-notation-migration/SKILL.md
-- When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section E for ordering rules.
+- When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section F for ordering rules.
 - Local imports: prefer bare module names (`"Bech32"`) over relative paths (`"./Bech32"`) for sibling files. Both resolve correctly but bare names are more concise.
 - Import paths like `"../src/Bech32"` from within `src/` are incorrect — use `"Bech32"` for siblings or `"../SubDir/Module"` for cross-directory references.
 
