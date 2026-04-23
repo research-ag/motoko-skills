@@ -448,7 +448,7 @@ Sections (in this order, each separated by a single blank line)
 3) Local project modules
     - Bare module name imports like `"Bech32"`, `"Common"` (preferred), or relative path imports like `"../ByteUtils"`, `"./Script"`.
     - Prefer bare module names without `./` prefix for sibling imports (e.g., `"Bech32"` instead of `"./Bech32"`). Both work, but bare names are cleaner.
-    - Sort the imports of local project modules by the name as which they are imported, not by the name in the path that is being imported.
+    - Sort local project module imports by the local name they are imported as, not by the module name in the imported path.
 
 Sorting rules (apply within each section independently)
 - Sort alphabetically by the quoted path string.
