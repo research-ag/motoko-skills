@@ -126,8 +126,8 @@ Also applies to `transient var` → `transient let` and `stable var` → `stable
 5. Watch for **type errors (M0096)** after renaming — they indicate you broke a type signature
 6. Record field renames in IC interface functions will cause cascading type errors
 
-## Build Notes for This Project
+## Environment Notes
 
-- Build time: ~5 minutes for full `dfx build --check`
-- The `users_management` canister may fail with a missing `.did` file — this is a pre-existing issue unrelated to warnings
-- Compiler version: moc 1.4.1
+- Build time varies by repository size and number of canisters.
+- If a repository has pre-existing build failures unrelated to compiler warnings, document them separately and avoid treating them as warning-fix regressions.
+- Compiler warnings can vary by `moc` version, so record the active compiler version when it is relevant to reproducing or triaging results.
