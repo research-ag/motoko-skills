@@ -38,6 +38,23 @@ Private declarations (`func`, `let`, `class` without `public`) and helper
 types should NOT receive `///` comments — they don't appear in `mo-doc`
 output and the noise hurts readability.
 
+## Comprehensiveness by Location
+
+How thorough a doc string needs to be depends on where the file lives:
+
+- **Inside `src/internal/`** — doc strings can be brief. These modules are
+  implementation details that end users are not expected to call directly,
+  so a short one-liner stating what a declaration does is usually enough.
+  Trap/error notes can be omitted unless the behavior is surprising to
+  another maintainer.
+- **Anywhere else under `src/` (i.e. outside `src/internal/`)** — doc
+  strings MUST be comprehensive. These are the public API surface that
+  users will call, so they need every detail: argument units and formats,
+  size/range constraints, return-value semantics, full failure behavior
+  (`Traps` / `Errors` paragraphs), and runnable examples where helpful.
+  Apply the full "User-Perspective Read-Through" checklist at the end of
+  this skill to every declaration here.
+
 ## Doc String Format
 
 `mo-doc` parses lines that start with `///` as Markdown documentation
