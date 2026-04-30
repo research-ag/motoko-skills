@@ -32,8 +32,9 @@ Safety first:
 - B. Convert to dot‑notation where available — see Motoko Dot‑Notation Migration Skill (`skills/dot-notation-migration/SKILL.md`)
 - C. Ensure necessary `mo:core` imports for dot‑notation — see Motoko Dot‑Notation Migration Skill (import mapping)
 - D. Clean up unused imports (be conservative re: dot‑notation)
-- E. Aggregate imports into three sections and sort each section alphabetically per file (1) `mo:core/...` (2) other `mo:*/...` from mops/third‑party (3) local project modules)
-- F. Use direct string-to-Blob assignment for constant ASCII strings where appropriate
+- E. Shorten local (sibling) import paths (drop the `./` prefix where applicable)
+- F. Aggregate imports into three sections and sort each section alphabetically per file: (1) `mo:core/...`, (2) other `mo:*/...` from mops/third‑party, (3) local project modules
+- G. Use direct string‑to‑Blob assignment for constant ASCII strings where appropriate
 
 3) Verify after each step
 - Build all canisters or packages
@@ -63,10 +64,383 @@ func f(x : T) : U { <expr> };
 Notes
 - Only apply when the function body consists of a single `return <expr>;` statement.
 - Do not transform multi‑statement bodies or bodies that include `try`, `label`, `switch`, or `await` leading to different control flow.
+- A function with multiple `return` statements (e.g., early returns in `switch` cases like `return null`) must NOT have any returns removed.
+- **Single non-terminal `return` (early/conditional exit):** if a function has exactly one `return` but it is *not* the final statement of the body (e.g., an early return inside an `if` or `switch` case, followed by a fall-through final expression), the function has two distinct return paths. Do NOT remove the early `return`. Instead, add an explicit `return` to the final expression as well, so the function has two `return` keywords total — one per exit path. This makes both control-flow exits explicit and consistent.
+  ```motoko
+  // Before — one explicit return, one implicit fall-through return
+  func lookup(k : Key) : ?V {
+    if (cache.contains(k)) { return cache.get(k) };
+    table.find(k)
+  };
+
+  // After — both exit paths use `return`
+  func lookup(k : Key) : ?V {
+    if (cache.contains(k)) { return cache.get(k) };
+    return table.find(k);
+  };
+  ```
+- **`return switch (...) { ... }` at the end of a function is OK.** Each case block ends with the expression being returned (no `return` keyword inside the cases). This is the preferred style when all cases produce values normally.
+  ```motoko
+  // OK — all cases produce values, no traps or throws
+  return switch (decode(data)) {
+    case (#ok key) { (key.x, key.y) };
+    case (#err msg) { #err(msg) };
+  };
+  ```
+- **Exception: if any case has a return-equivalent statement (`Runtime.trap` or `throw`) that represents a genuine function exit, pull `return` inside the case blocks.** Remove `return` before `switch`, then add `return` only in the case blocks that produce values. Cases with `Runtime.trap` or `throw` do not need `return`. This makes it clear which branches return and which abort:
+  ```motoko
+  // Avoid — trap is hidden inside return switch
+  return switch (decode(data)) {
+    case (#ok key) { (key.x, key.y) };
+    case (#err msg) { Runtime.trap(msg) };
+  };
+
+  // Prefer — return only in value-producing cases
+  switch (decode(data)) {
+    case (#ok key) { return (key.x, key.y) };
+    case (#err msg) { Runtime.trap(msg) };
+  };
+  ```
+- **Unreachable traps are NOT return-equivalent.** If `Runtime.trap("unreachable")` is used, or a comment or message indicates the branch is only reachable through a bug, that trap is not a normal function exit — it's a defensive assertion. In that case, `return switch` is fine and `return` should NOT be pulled inside:
+  ```motoko
+  // OK — the trap just guards an impossible case
+  return switch (Jacobi.fromNat(x, y, 1, curve)) {
+    case (null) Runtime.trap("unreachable");
+    case (?point) point;
+  };
+  ```
 
 Automation (example)
 - Grep candidates: `grep -rn "func \\w\\+(.*) *:.*{ *return .*; *};" . --include="*.mo" | grep -v \.mops`
 - Review matches; then apply with your editor or a scripted replacement.
+
+Script Safety Requirements (learned from real migration)
+- A simple line-based return counter is NOT sufficient. You must track function boundaries using brace-depth parsing at the character level.
+- **Nested functions**: When a function body contains nested `func` declarations, skip the nested function's body entirely — only count returns at the direct (outermost) function scope.
+- **Accurate function boundary detection**: Use character-level scanning that handles string literals (skip `"..."` including `\"` escapes), comments (`//` line comments and `/* ... */` block comments), and tracks brace depth to find the true closing `}` of each function.
+- **Counting rule**: Count every `return` anywhere inside the outer function body, including inside nested control-flow blocks such as `switch`, `if`, `for`, and `while`, but excluding any `return` inside nested `func` bodies. A function is safe to rewrite only if this total count is exactly 1 **and that single `return` is the terminal direct-body statement** (only whitespace, comments, and an optional `;` may follow it before the closing `}`). If the single `return` is an early/conditional exit, the function has an additional implicit return path via its fall-through final expression — leave both alone (the script will not remove it; manually add an explicit `return` to the fall-through expression per the style note above).
+
+Battle-tested Python script
+
+Save as `remove_returns.py` in the project root, run with `python3 remove_returns.py`, then delete the script.
+
+```python
+#!/usr/bin/env python3
+"""
+Remove terminal `return` from Motoko functions that have exactly one return
+statement in their direct body (excluding nested functions).
+
+Usage:
+  1. Set src_dirs to match your project layout.
+  2. Run: python3 remove_returns.py
+  3. Run tests: npx mops test
+  4. Delete this script after confirming all tests pass.
+
+Safety:
+  - Tracks function boundaries via character-level brace-depth parsing.
+  - Skips string literals ("..." with \" escapes) and comments (// and /* */).
+  - Detects nested `func` declarations and skips their bodies entirely.
+  - Only removes the `return` keyword (+ trailing space) from functions with
+    exactly 1 return at any depth within the direct body.
+"""
+
+import re
+import glob
+import os
+
+# ── Configuration ──────────────────────────────────────────────────────
+# Directories to process (relative to script location or cwd).
+SRC_DIRS = ["src", "test", "bench"]
+# ──────────────────────────────────────────────────────────────────────
+
+
+def find_func_bodies(text):
+    """
+    Yield (body_start, body_end) for every top-level and nested function
+    found in `text`. body_start is the index of the opening '{' of the
+    function body; body_end is the index of the matching closing '}'.
+
+    Handles:
+      - String literals (skips content inside "...")
+      - Line comments (// ...)
+      - Block comments (/* ... */)
+      - Nested braces
+    """
+    i = 0
+    n = len(text)
+    while i < n:
+        # Skip string literals
+        if text[i] == '"':
+            i += 1
+            while i < n and text[i] != '"':
+                if text[i] == '\\':
+                    i += 1  # skip escaped char
+                i += 1
+            i += 1  # skip closing "
+            continue
+
+        # Skip line comments
+        if text[i] == '/' and i + 1 < n and text[i + 1] == '/':
+            i += 2
+            while i < n and text[i] != '\n':
+                i += 1
+            continue
+
+        # Skip block comments
+        if text[i] == '/' and i + 1 < n and text[i + 1] == '*':
+            i += 2
+            while i < n and not (text[i] == '*' and i + 1 < n and text[i + 1] == '/'):
+                i += 1
+            i += 2  # skip */
+            continue
+
+        # Look for 'func' keyword at a word boundary
+        if text[i:i+4] == 'func' and (i == 0 or not text[i-1].isalnum() and text[i-1] != '_'):
+            after = text[i+4:i+5] if i + 4 < n else ''
+            if after == '' or not (after.isalnum() or after == '_'):
+                # Found a func keyword. Scan forward to find the opening '{'.
+                j = i + 4
+                while j < n:
+                    if text[j] == '"':
+                        j += 1
+                        while j < n and text[j] != '"':
+                            if text[j] == '\\':
+                                j += 1
+                            j += 1
+                        j += 1
+                        continue
+                    if text[j] == '{':
+                        # Found the opening brace of the function body.
+                        brace_start = j
+                        depth = 1
+                        j += 1
+                        while j < n and depth > 0:
+                            if text[j] == '"':
+                                j += 1
+                                while j < n and text[j] != '"':
+                                    if text[j] == '\\':
+                                        j += 1
+                                    j += 1
+                                j += 1
+                                continue
+                            if text[j] == '/' and j + 1 < n and text[j + 1] == '/':
+                                j += 2
+                                while j < n and text[j] != '\n':
+                                    j += 1
+                                continue
+                            if text[j] == '/' and j + 1 < n and text[j + 1] == '*':
+                                j += 2
+                                while j < n and not (text[j] == '*' and j + 1 < n and text[j + 1] == '/'):
+                                    j += 1
+                                j += 2
+                                continue
+                            if text[j] == '{':
+                                depth += 1
+                            elif text[j] == '}':
+                                depth -= 1
+                            j += 1
+                        brace_end = j - 1  # index of closing '}'
+                        yield (brace_start, brace_end)
+                        i = j
+                        break
+                    if text[j] == '=' or text[j] == ';':
+                        # func ... = expr; (no body) or forward decl
+                        i = j + 1
+                        break
+                    j += 1
+                else:
+                    i = j
+                continue
+        i += 1
+
+
+def count_returns_in_direct_body(text, body_start, body_end):
+    """
+    Count `return` statements that are directly inside this function body
+    (not inside nested functions). Returns list of (return_keyword_start,
+    return_keyword_end) positions.
+    """
+    body = text[body_start + 1 : body_end]  # content between { and }
+    offset = body_start + 1
+
+    # First, find all nested func bodies within this body so we can skip them.
+    nested_ranges = []
+    for ns, ne in find_func_bodies(body):
+        # Adjust to absolute positions
+        nested_ranges.append((ns + offset, ne + offset))
+
+    def is_inside_nested(pos):
+        for ns, ne in nested_ranges:
+            if ns <= pos <= ne:
+                return True
+        return False
+
+    # Now scan for `return` keywords in the body, skipping nested funcs.
+    returns = []
+    i = 0
+    while i < len(body):
+        # Skip strings
+        if body[i] == '"':
+            i += 1
+            while i < len(body) and body[i] != '"':
+                if body[i] == '\\':
+                    i += 1
+                i += 1
+            i += 1
+            continue
+
+        # Skip line comments
+        if body[i] == '/' and i + 1 < len(body) and body[i + 1] == '/':
+            i += 2
+            while i < len(body) and body[i] != '\n':
+                i += 1
+            continue
+
+        # Skip block comments
+        if body[i] == '/' and i + 1 < len(body) and body[i + 1] == '*':
+            i += 2
+            while i < len(body) and not (body[i] == '*' and i + 1 < len(body) and body[i + 1] == '/'):
+                i += 1
+            i += 2
+            continue
+
+        # Check for 'return' keyword
+        if body[i:i+6] == 'return' and (i == 0 or not body[i-1].isalnum() and body[i-1] != '_'):
+            after = body[i+6:i+7] if i + 6 < len(body) else ''
+            if after == '' or not (after.isalnum() or after == '_'):
+                abs_pos = i + offset
+                if not is_inside_nested(abs_pos):
+                    returns.append((abs_pos, abs_pos + 6))
+                i += 6
+                continue
+        i += 1
+
+    return returns
+
+
+def process_file(filepath):
+    with open(filepath, 'r') as f:
+        text = f.read()
+
+    original = text
+    removals = 0
+
+    # Collect all function bodies
+    func_bodies = list(find_func_bodies(text))
+
+    # For each function, check if it has exactly 1 return in its direct body
+    # Process in reverse order to preserve indices when editing
+    edits = []  # list of (start, end) of "return " to remove
+
+    for body_start, body_end in func_bodies:
+        returns = count_returns_in_direct_body(text, body_start, body_end)
+        if len(returns) == 1:
+            ret_start, ret_end = returns[0]
+            # Verify this return is the terminal statement of the direct body:
+            # scan past the return's expression (tracking brackets/strings/comments)
+            # to its terminating ';' (or body_end), then ensure only whitespace,
+            # comments, and optional semicolons remain before body_end.
+            n = len(text)
+            j = ret_end
+            depth = 0
+            stmt_end = body_end  # position after the return statement
+            while j < body_end:
+                c = text[j]
+                if c == '"':
+                    j += 1
+                    while j < body_end and text[j] != '"':
+                        if text[j] == '\\':
+                            j += 1
+                        j += 1
+                    j += 1
+                    continue
+                if c == '/' and j + 1 < body_end and text[j + 1] == '/':
+                    j += 2
+                    while j < body_end and text[j] != '\n':
+                        j += 1
+                    continue
+                if c == '/' and j + 1 < body_end and text[j + 1] == '*':
+                    j += 2
+                    while j < body_end and not (text[j] == '*' and j + 1 < body_end and text[j + 1] == '/'):
+                        j += 1
+                    j += 2
+                    continue
+                if c in '({[':
+                    depth += 1
+                elif c in ')}]':
+                    depth -= 1
+                elif c == ';' and depth == 0:
+                    stmt_end = j + 1
+                    break
+                elif c == '\n' and depth == 0:
+                    # Statement terminated by newline (no semicolon)
+                    stmt_end = j
+                    break
+                j += 1
+            else:
+                stmt_end = body_end
+
+            # Now skip whitespace, comments, and stray semicolons after the return
+            k = stmt_end
+            terminal = True
+            while k < body_end:
+                c = text[k]
+                if c.isspace() or c == ';':
+                    k += 1
+                    continue
+                if c == '/' and k + 1 < body_end and text[k + 1] == '/':
+                    k += 2
+                    while k < body_end and text[k] != '\n':
+                        k += 1
+                    continue
+                if c == '/' and k + 1 < body_end and text[k + 1] == '*':
+                    k += 2
+                    while k < body_end and not (text[k] == '*' and k + 1 < body_end and text[k + 1] == '/'):
+                        k += 1
+                    k += 2
+                    continue
+                # Found other code after the return — not terminal.
+                terminal = False
+                break
+
+            if not terminal:
+                continue
+
+            # Remove "return " (keyword + trailing space)
+            if ret_end < len(text) and text[ret_end] == ' ':
+                edits.append((ret_start, ret_end + 1))
+            else:
+                edits.append((ret_start, ret_end))
+
+    # Apply edits in reverse order to preserve positions
+    edits.sort(key=lambda x: x[0], reverse=True)
+    for start, end in edits:
+        text = text[:start] + text[end:]
+        removals += 1
+
+    if text != original:
+        with open(filepath, 'w') as f:
+            f.write(text)
+
+    return removals
+
+
+def main():
+    total = 0
+    files_modified = 0
+    for src_dir in SRC_DIRS:
+        for filepath in sorted(glob.glob(os.path.join(src_dir, "**/*.mo"), recursive=True)):
+            r = process_file(filepath)
+            if r > 0:
+                print(f"  {filepath}: {r} returns removed")
+                total += r
+                files_modified += 1
+    print(f"\nTotal: {total} returns removed in {files_modified} files")
+
+
+if __name__ == '__main__':
+    main()
+```
 
 ---
 
@@ -75,7 +449,7 @@ Automation (example)
 For all Motoko dot‑notation rules, automation scripts, and pitfalls, see the dedicated skill:
 - skills/dot-notation-migration/SKILL.md
 
-This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section E).
+This file intentionally does not duplicate those instructions. Apply dot‑notation changes using the dedicated skill, then continue here with import cleanup (Section D) and import ordering (Section F).
 
 ---
 
@@ -84,7 +458,7 @@ This file intentionally does not duplicate those instructions. Apply dot‑notat
 For import mapping and rules related to dot‑notation, use the dedicated skill:
 - skills/dot-notation-migration/SKILL.md
 
-This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section E (import ordering).
+This file intentionally does not duplicate the import mapping. After applying dot‑notation changes per that skill, proceed with Section D (unused import cleanup) and Section F (import ordering).
 
 ---
 
@@ -95,6 +469,13 @@ Goal
 
 Reality check
 - Editor tooling (VSCode Motoko extension) correctly marks unused imports, including dot‑notation awareness. CLI detection can be trickier.
+
+Common false positives (imports that LOOK unused but are REQUIRED)
+- `Blob` — needed when `.toArray()`, `.size()`, `.isEmpty()`, `.hash()` are called on `Blob` values (e.g., `Sha256.fromArray(...).toArray()`, `hmac.sum().toArray()`)
+- `Array` — needed when `.flatten()`, `.foldLeft()`, `.sliceToArray()`, `.map()`, `.filter()` etc. are called on `[T]` values (e.g., `[arr1, arr2].flatten()`)
+- `Nat` — needed when `.toText()` is called on `Nat` values from `.size()` (e.g., `arr.size().toText()`)
+- `VarArray` — needed when `.toArray()` is called on `[var T]` values
+- **Rule**: If ANY dot-notation method is called on a value of that module's type, the import is required even though the module name never appears explicitly in the code.
 
 Approaches
 1) Editor‑guided
@@ -116,7 +497,29 @@ Audit helpers
 
 ---
 
-## E) Aggregate and alphabetize imports by section
+## E) Shorten local (sibling) import paths
+
+-   Use bare module names for local imports when possible: `"Bech32"` instead of `"./Bech32"`. Both resolve correctly, but bare names are more concise and idiomatic.
+
+    ``` motoko no-repl
+    // Good
+    import Bech32 "Bech32";
+    import Script "Script";
+    import Types "Types";
+
+    // Acceptable (cross-directory)
+    import ByteUtils "../ByteUtils";
+    import Curves "../ec/Curves";
+
+    // Avoid (unnecessary ./ prefix for siblings)
+    import Bech32 "./Bech32";
+    ```
+
+-   For cross-directory imports, relative paths with `../` are required and acceptable.
+
+---
+
+## F) Aggregate and alphabetize imports by section
 
 Why
 - Consistent ordering reduces merge conflicts and speeds reviews. Clear grouping improves scanning and avoids mixing external modules with local ones.
@@ -127,10 +530,12 @@ Sections (in this order, each separated by a single blank line)
 2) Other mo:* third‑party imports (mops or similar)
     - Any `mo:...` imports that are not `mo:core/...` (e.g., `mo:uuid/UUID`, `mo:sha2/SHA256`, etc.).
 3) Local project modules
-    - Relative path imports such as "../..." and "./...".
+    - Bare module name imports like `"Bech32"`, `"Common"` (preferred), or relative path imports like `"../ByteUtils"`, `"./Script"`.
+    - Prefer bare module names without `./` prefix for sibling imports (e.g., `"Bech32"` instead of `"./Bech32"`). Both work, but bare names are cleaner.
+    - Sort local project module imports by the local name they are imported as, not by the module name in the imported path.
 
 Sorting rules (apply within each section independently)
-- Sort alphabetically by the quoted path string.
+- Sort alphabetically by the local name modules are imported as
 - Preserve import style (module vs. named type imports).
 - Keep multiple named‑type imports from the same path on a single line as‑is.
 - Optionally keep a comment header above each section (Core, Third‑party, Local) if your repo style prefers.
@@ -157,20 +562,20 @@ import BitVec "mo:bitvec/BitVec";
 import SHA256 "mo:sha2/SHA256";
 
 //// Local
-import Logger "./Logger";
+import Logger "Logger";
 import Utils "../lib/Utils";
 ```
 
 Lightweight automation idea (per file)
 - Collect all import lines at the file top.
 - Partition into the three sections by path prefix.
-- Sort each partition by the quoted path.
+- Sort each partition alphabetically by the local name they are imported as
 - Re‑emit sections in the order Core → Third‑party → Local, with a blank line between sections.
 - Keep any non‑import comments at their relative positions unless they clearly belong to a section header.
 
 ---
 
-## F) Direct string‑to‑Blob assignment for constants
+## G) Direct string‑to‑Blob assignment for constants
 
 Pattern
 ```motoko
@@ -234,11 +639,39 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
     - B. Apply dot‑notation per skills/dot-notation-migration/SKILL.md
     - C. Ensure required imports for any introduced dot‑notation (see import mapping in skills/dot-notation-migration/SKILL.md)
     - D. Remove truly unused imports (respect the dot‑notation import mapping from the dedicated skill)
-    - E. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
-    - F. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
+    - E. Shorten local (sibling) import paths (remove `./` prefix where applicable)
+    - F. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
+    - G. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
 3) After each file: compile; if failure due to missing import, restore and mark mapping
 4) After each category across repo: run a full build and optionally tests
 5) Produce a short report of changes and any edge cases deferred for manual review
+
+---
+
+## H) Convert `Array.fromVarArray(x)` to `x.toArray()`
+
+Pattern
+```motoko
+// Before
+Array.fromVarArray(buf)
+Array.fromVarArray<Nat8>(buf)
+
+// After
+buf.toArray()
+```
+
+Notes
+- `Array.fromVarArray` is a factory function (first param is NOT `self`), so the dot-notation migration script does NOT convert it automatically. This is a separate conversion.
+- `VarArray.toArray()` is the dot-notation equivalent — it's defined on `[var T]` values.
+- After conversion, check if `Array` import can be removed (it may still be needed for `Array.tabulate`, `Array.flatten` dot-notation on `[T]`, etc.)
+- Strip optional type params: `Array.fromVarArray<Nat8>(buf)` → `buf.toArray()` (the type is inferred from the var array).
+
+## I) `Array.tabulate` type annotations are usually required
+
+- Do NOT remove type annotations from `Array.tabulate<T>(...)` calls.
+- The Motoko compiler often cannot infer the element type, especially when the callback uses `fromNat`, arithmetic, or other expressions that could return multiple numeric types.
+- Removing annotations caused 13 of 24 test files to fail in a real project with errors like `expression of type [Any] cannot produce expected type [Nat8]`.
+- Keep them: `Array.tabulate<Nat8>(n, func i { ... })`.
 
 ---
 
@@ -246,7 +679,9 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
 
 - For all dot‑notation behavior, method availability, factories vs methods, and mutability notes, see:
     - skills/dot-notation-migration/SKILL.md
-- When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section E for ordering rules.
+- When aggregating imports, keep named type imports from `mo:core/Types` within the `mo:core` group; see Section F for ordering rules.
+- Local imports: prefer bare module names (`"Bech32"`) over relative paths (`"./Bech32"`) for sibling files. Both resolve correctly but bare names are more concise.
+- Import paths like `"../src/Bech32"` from within `src/` are incorrect — use `"Bech32"` for siblings or `"../SubDir/Module"` for cross-directory references.
 
 ---
 
