@@ -166,7 +166,8 @@ create one with this format:
 
 ### Changed
 
-- Bumped `<dep>` from `x.y.z` to `a.b.c`.
+- Updated `core` from `2.0.0` to `2.5.0`.
+- Bumped `bench` from `1.0.0` to `2.0.1`.
 
 ### Fixed
 
@@ -216,10 +217,12 @@ Install Prettier and the Motoko plugin locally:
 npm install --save-dev prettier prettier-plugin-motoko
 ```
 
-If a `package.json` does not exist, initialize one first:
+If a `package.json` does not exist, initialize one first and remove the default "scripts" section to avoid failing CI jobs:
 
 ```bash
 npm init -y
+# Remove the default scripts section
+node -e "const pkg=require('./package.json'); delete pkg.scripts; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2))"
 npm install --save-dev prettier prettier-plugin-motoko
 ```
 
