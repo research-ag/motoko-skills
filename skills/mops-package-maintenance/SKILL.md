@@ -104,6 +104,8 @@ moc = "1.6.0"
 - `.gitignore`: do NOT ignore `package-lock.json` — committing it
   ensures deterministic, reproducible installs across CI and dev.
   Only `node_modules/` and build artifacts should be ignored.
+  **IMPORTANT**: Explicitly exclude IDE directories (like `.idea/`, `.vscode/`) and agent-specific directories (like `.agents/`, `.junie/`, `.claude/`, `.copilot/`)
+  from the repository. These are local configuration and agent-specific files. Also exclude `skills-lock.json`.
 - `package.json` `license` MUST match `mops.toml` `[package] license`.
   Mismatched license metadata produces incorrect data for npm consumers
   and is a compliance risk.
@@ -163,9 +165,11 @@ create one with this format:
 ## [Unreleased]
 
 ### Changed
+
 - Bumped `<dep>` from `x.y.z` to `a.b.c`.
 
 ### Fixed
+
 - Adapted `<function>` to new `<dep>` API (renamed `old` → `new`).
 ```
 
@@ -256,6 +260,10 @@ Update the CHANGELOG `[Unreleased]` header to the new version number:
 ```
 
 ### Step 10 — Commit and push
+
+**IMPORTANT**: Before committing, verify with `git status` that ONLY the changes you intended to make are staged.
+Specifically, ensure that IDE directories (like `.idea/`, `.vscode/`) and agent directories (like `.agents/`, `.junie/`, `.claude/`, `.copilot/`) are NOT staged. If they are, unstage them:
+`git restore --staged .idea .vscode .agents .junie .claude .copilot skills-lock.json`
 
 Stage all changes and commit:
 
