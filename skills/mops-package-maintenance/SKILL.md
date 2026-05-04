@@ -264,14 +264,17 @@ Update the CHANGELOG `[Unreleased]` header to the new version number:
 
 ### Step 10 — Commit and push
 
-**IMPORTANT**: Before committing, verify with `git status` that ONLY the changes you intended to make are staged.
-Specifically, ensure that IDE directories (like `.idea/`, `.vscode/`) and agent directories (like `.agents/`, `.junie/`, `.claude/`, `.copilot/`) are NOT staged. If they are, unstage them:
-`git restore --staged .idea .vscode .agents .junie .claude .copilot skills-lock.json`
-
-Stage all changes and commit:
+Stage all changes:
 
 ```bash
 git add -A
+git restore --staged .idea .vscode .agents .junie .claude .copilot skills-lock.json
+git status
+```
+
+Verify `git status` shows only intended staged files, then commit:
+
+```bash
 git commit -m "chore: bump dependencies and prepare v<NEW_VERSION>"
 ```
 
