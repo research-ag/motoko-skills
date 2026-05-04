@@ -217,12 +217,12 @@ Install Prettier and the Motoko plugin locally:
 npm install --save-dev prettier prettier-plugin-motoko
 ```
 
-If a `package.json` does not exist, initialize one first and remove the default "scripts" section to avoid failing CI jobs:
+If a `package.json` does not exist, initialize one first and remove the default "scripts" section to avoid failing CI jobs, and mark it as private to prevent accidental publishing:
 
 ```bash
 npm init -y
-# Remove the default scripts section
-node -e "const pkg=require('./package.json'); delete pkg.scripts; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2))"
+# Remove the default scripts section and mark as private
+node -e "const pkg=require('./package.json'); delete pkg.scripts; pkg.private=true; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2))"
 npm install --save-dev prettier prettier-plugin-motoko
 ```
 
