@@ -177,8 +177,7 @@ create one with this format:
 ### Step 6 — Review and improve doc strings
 
 Scan every `.mo` file under `src/` for public declarations. For each
-public `type`, `func`, `class`, `let`, and `module`:
-
+public `type`, `func`, `actor`, `actor class`, `let`, and `module`:
 1. Check that a `///` doc string exists directly above the declaration.
 2. Read the doc string from a first-time user's perspective:
     - Is the purpose clear?
