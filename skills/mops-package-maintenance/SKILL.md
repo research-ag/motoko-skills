@@ -49,7 +49,9 @@ All subsequent changes are committed on this branch.
 Open `mops.toml` and list every dependency under `[dependencies]` and
 `[dev-dependencies]`.
 
-For each dependency, check the latest available version:
+**Important:** `moc` version in `[toolchain]` should usually be upgraded to the latest version to ensure a modern build environment. However, `moc` in `[requirements]` MUST remain stable and should not be automatically listed for upgrade unless a specific breaking change in a dependency requires it.
+
+For each dependency in `[dependencies]` and `[dev-dependencies]`, check the latest available version:
 
 ```bash
 mops search <package-name>
@@ -60,8 +62,16 @@ packages need upgrading.
 
 ### Step 2 — Upgrade dependencies in `mops.toml`
 
-For each outdated dependency, update the version string in `mops.toml`
-to the latest version. Then install:
+For each outdated dependency in `[dependencies]` and `[dev-dependencies]`, update the version string in `mops.toml`
+to the latest version.
+
+**Upgrading `moc`:**
+- `[toolchain] moc`: Upgrade this to the latest version.
+- `[requirements] moc`: Do NOT upgrade this unless:
+  1. It is absolutely necessary to support an upgraded dependency.
+  2. You have verified the `moc` changelog for breaking changes and are prepared to fix any resulting issues.
+
+Then install:
 
 ```bash
 mops install
@@ -285,21 +295,23 @@ Ready for review. Run `git push -u origin HEAD` to push.
    or release notes before upgrading. If the migration is non-trivial,
    flag it to the user.
 
-2. **Lock file drift.** Always run `mops install` after editing
+2. **Don't blindly bump `[requirements] moc` version.** While the `[toolchain] moc` version should be kept up to date, the `moc` version in `[requirements]` should NOT be changed to the latest version (e.g., from `1.3.0` to `1.6.0`) unless absolutely necessary. Check the `moc` changelog for breaking changes before considering an upgrade to the requirements.
+
+3. **Lock file drift.** Always run `mops install` after editing
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
    lock file.
 
-3. **Formatter changes tests.** `prettier-plugin-motoko` may reformat
+4. **Formatter changes tests.** `prettier-plugin-motoko` may reformat
    test files. This is fine — the formatting is canonical. But always
    re-run tests afterward to confirm nothing broke.
 
-4. **Missing `node_modules` in `.gitignore`.** After running `npm install`,
+5. **Missing `node_modules` in `.gitignore`.** After running `npm install`,
    make sure `node_modules/` is listed in `.gitignore`. Add it if missing.
 
-5. **CHANGELOG ordering.** Newest version goes at the top. Don't append
+6. **CHANGELOG ordering.** Newest version goes at the top. Don't append
    to the bottom.
 
-6. **Don't skip the doc-string review.** Even if no code changed, the AI
+7. **Don't skip the doc-string review.** Even if no code changed, the AI
    may have improved since the last pass and can now write better docs.
    Always do a full scan.
 
