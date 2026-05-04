@@ -318,8 +318,8 @@ After completing all steps, run the full validation suite one final time:
 mops install
 mops test
 mops bench
-npx prettier --check '**/*.mo'
+npx prettier --check '**/*.mo' '**/*.md' '**/*.json'
 ```
 
 All four commands must succeed with no errors. If `prettier --check`
-reports unformatted files, run `npx prettier --write` again and re-commit.
+reports unformatted files, run `npx prettier --write '**/*.mo' '**/*.md' '**/*.json'` again and re-commit.
