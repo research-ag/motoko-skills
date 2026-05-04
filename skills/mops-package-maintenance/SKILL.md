@@ -101,11 +101,11 @@ moc = "1.6.0"
 
 #### Step 2b — Audit repo hygiene files
 
-- `.gitignore`: do NOT ignore `package-lock.json` — committing it
+`.gitignore`: do NOT ignore `package-lock.json` — committing it
   ensures deterministic, reproducible installs across CI and dev.
-  Only `node_modules/` and build artifacts should be ignored.
-  **IMPORTANT**: Explicitly exclude IDE directories (like `.idea/`, `.vscode/`) and agent-specific directories (like `.agents/`, `.junie/`, `.claude/`, `.copilot/`)
-  from the repository. These are local configuration and agent-specific files. Also exclude `skills-lock.json`.
+  Ignore `node_modules/`, build artifacts, IDE directories (e.g. `.idea/`, `.vscode/`),
+  agent-specific directories (e.g. `.agents/`, `.junie/`, `.claude/`, `.copilot/`),
+  and `skills-lock.json`.
 - `package.json` `license` MUST match `mops.toml` `[package] license`.
   Mismatched license metadata produces incorrect data for npm consumers
   and is a compliance risk.
@@ -277,7 +277,7 @@ git commit -m "chore: bump dependencies and prepare v<NEW_VERSION>"
 
 Inform the user that the branch is ready for review and/or pushing:
 
-```
+```text
 Branch: chore/dependency-bump-YYYY-MM-DD
 Ready for review. Run `git push -u origin HEAD` to push.
 ```
