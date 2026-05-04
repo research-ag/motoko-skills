@@ -228,13 +228,7 @@ npm install --save-dev prettier prettier-plugin-motoko
 #### 8b — Run the formatter
 
 ```bash
-npx prettier --write '**/*.mo'
-```
-
-If the project also has Markdown or JSON files you want formatted:
-
-```bash
-npx prettier --write '**/*.md' '**/*.json'
+npx prettier --write '**/*.{mo,json,md}'
 ```
 
 After formatting, re-run tests to make sure formatting did not break
@@ -317,8 +311,8 @@ After completing all steps, run the full validation suite one final time:
 mops install
 mops test
 mops bench
-npx prettier --check '**/*.mo' '**/*.md' '**/*.json'
+npx prettier --check '**/*.{mo,json,md}'
 ```
 
 All four commands must succeed with no errors. If `prettier --check`
-reports unformatted files, run `npx prettier --write '**/*.mo' '**/*.md' '**/*.json'` again and re-commit.
+reports unformatted files, run `npx prettier --write '**/*.{mo,json,md}'` again and re-run this validation before re-committing.
