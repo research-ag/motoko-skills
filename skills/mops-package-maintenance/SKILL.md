@@ -79,7 +79,7 @@ For each outdated dependency in `[dependencies]` and `[dev-dependencies]`, updat
 to the latest version.
 
 **Upgrading `moc`:**
-- `[toolchain] moc`: Upgrade this to the latest version.
+- `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
 - `[requirements] moc`: Do NOT upgrade this unless:
   1. It is absolutely necessary to support an upgraded dependency.
   2. You have verified the `moc` changelog for breaking changes and are prepared to fix any resulting issues.
@@ -182,8 +182,8 @@ upcoming version (you will finalize the version number in Step 10).
 
 Required bullet points:
 
-- **Dependencies bumped** — list every dependency that was upgraded and
-  its old → new version. (Note: Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]`).
+- **Dependencies bumped** — list every dependency from the `[dependencies]` or `[dev-dependencies]` sections that was upgraded and its old → new version.
+  - **CRITICAL:** Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]` or actual library dependencies. Even if you upgraded `[toolchain] moc` in Step 3, do NOT list it in the CHANGELOG.
 - **Breaking / notable changes** — if any source code had to change to
   accommodate new APIs, describe what changed and why.
 - **Bug fixes** — if any bugs were discovered and fixed during the
@@ -201,6 +201,7 @@ create one with this format:
 
 - Updated `core` from `2.0.0` to `2.5.0`.
 - Bumped `bench` from `1.0.0` to `2.0.1`.
+- Updated `[requirements] moc` from `1.2.0` to `1.3.0` (only include if requirements were actually changed).
 
 ### Fixed
 
@@ -344,6 +345,8 @@ Ready for review. Run `git push -u origin HEAD` to push.
    Always do a full scan.
 
 7. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
+
+8. **Including toolchain bumps in CHANGELOG.** Never include `[toolchain] moc` bumps in the CHANGELOG. It clutters the history with internal development details that do not affect the package's consumers. Only include `[requirements] moc` if it was explicitly upgraded.
 
 ## Verify It Works
 
