@@ -275,7 +275,7 @@ Recommended `.prettierrc`:
 
 #### 9b — Verify or Add Prettier Check and Format
 
-Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
+Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
 If no formatting check exists, suggest adding one that automatically formats and commits changes:
 
@@ -302,7 +302,7 @@ If no formatting check exists, suggest adding one that automatically formats and
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
 
-**Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.
+**Note:** Do not run `prettier --write` manually as part of this maintenance flow; CI handles automatic formatting (see Step 9b for CI usage).
 
 ### Step 10 — Bump the version
 
