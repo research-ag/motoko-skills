@@ -60,19 +60,21 @@ All subsequent changes are committed on this branch.
 
 ### Step 2 — Discover outdated dependencies
 
-Open `mops.toml` and list every dependency under `[dependencies]` and
-`[dev-dependencies]`.
+Use the `mops outdated` command to identify which dependencies have newer versions available:
 
-**Important:** `moc` version in `[toolchain]` should usually be upgraded to the latest version to ensure a modern build environment. `moc` in `[requirements]` should be set to the **minimum** version required for compatibility with upgraded dependencies, rather than blindly aligned with the latest toolchain version. This avoids unnecessarily restricting consumers to the latest compiler.
+```bash
+mops outdated
+```
 
-For each dependency in `[dependencies]` and `[dev-dependencies]`, check the latest available version:
+If `mops outdated` fails or is unavailable, you can manually check individual packages:
 
 ```bash
 mops search <package-name>
 ```
 
-Compare the installed version with the latest version. Record which
-packages need upgrading.
+Compare the installed versions in `mops.toml` with the latest available versions. Record which packages need upgrading.
+
+**Important:** `moc` version in `[toolchain]` should usually be upgraded to the latest version to ensure a modern build environment. `moc` in `[requirements]` should be set to the **minimum** version required for compatibility with upgraded dependencies, rather than blindly aligned with the latest toolchain version. This avoids unnecessarily restricting consumers to the latest compiler.
 
 ### Step 3 — Upgrade dependencies in `mops.toml`
 
@@ -80,6 +82,10 @@ For each outdated dependency in `[dependencies]` and `[dev-dependencies]`, updat
 to the latest version.
 
 **Upgrading `moc` and `[requirements]`:**
+- **Check latest `moc`**:
+  ```bash
+  mops toolchain update moc
+  ```
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
 - `[requirements]`: Update `moc` (and any other items in this section) to the **highest minimum version** required by your dependencies (if it's higher than the current requirement).
     1. Check the requirements of all upgraded dependencies (usually found in `.mops/<package>@<version>/mops.toml`). You can find all dependency configuration files quickly with:
