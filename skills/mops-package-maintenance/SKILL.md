@@ -256,23 +256,18 @@ Recommended `.prettierrc`:
 }
 ```
 
-#### 9b — Verify or Add CI Step
+#### 9b — Verify or Add Prettier Check
 
 Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 
-1. If no formatting check exists, suggest adding one using `npx`:
+If no formatting check exists, suggest adding one using `npx`:
 
 ```yaml
 - name: Prettier Check
   run: npx -p prettier -p prettier-plugin-motoko prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
-2. Also include a check for compiler warnings. Using `moc --check` ensures that warnings are treated as errors and will fail the CI build:
-
-```yaml
-- name: Compiler Check
-  run: find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)
-```
+**CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
 
 **Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.
 
@@ -335,6 +330,8 @@ Ready for review. Run `git push -u origin HEAD` to push.
 6. **Don't skip the doc-string review.** Even if no code changed, the AI
    may have improved since the last pass and can now write better docs.
    Always do a full scan.
+
+7. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
 
 ## Verify It Works
 
