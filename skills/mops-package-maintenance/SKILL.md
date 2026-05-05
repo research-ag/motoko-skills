@@ -63,7 +63,7 @@ All subsequent changes are committed on this branch.
 Open `mops.toml` and list every dependency under `[dependencies]` and
 `[dev-dependencies]`.
 
-**Important:** `moc` version in `[toolchain]` should usually be upgraded to the latest version to ensure a modern build environment. `moc` in `[requirements]` should be checked for compatibility with upgraded dependencies and should ideally be aligned with the `[toolchain]` version to ensure a consistent build environment for consumers.
+**Important:** `moc` version in `[toolchain]` should usually be upgraded to the latest version to ensure a modern build environment. `moc` in `[requirements]` should be set to the **minimum** version required for compatibility with upgraded dependencies, rather than blindly aligned with the latest toolchain version. This avoids unnecessarily restricting consumers to the latest compiler.
 
 For each dependency in `[dependencies]` and `[dev-dependencies]`, check the latest available version:
 
@@ -79,15 +79,18 @@ packages need upgrading.
 For each outdated dependency in `[dependencies]` and `[dev-dependencies]`, update the version string in `mops.toml`
 to the latest version.
 
-**Upgrading `moc`:**
+**Upgrading `moc` and `[requirements]`:**
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
-- `[requirements] moc`: Align the declared minimum `moc` requirement with the `[toolchain]` version if:
-    1. An upgraded dependency requires a higher `moc` version than the current requirement.
-    2. You want to ensure consumers use the same compiler version you used for development and testing.
-    3. You have verified the `moc` changelog for breaking changes and are prepared to fix any resulting issues.
+- `[requirements]`: Update `moc` (and any other items in this section) to the **highest minimum version** required by your dependencies (if it's higher than the current requirement).
+    1. Check the requirements of all upgraded dependencies (usually found in `.mops/<package>@<version>/mops.toml`). You can find all dependency configuration files quickly with:
+       ```bash
+       find .mops -name mops.toml
+       ```
+    2. If the highest requirement among dependencies is higher than your current version in `[requirements]`, update yours to match that highest requirement.
+    3. Do NOT automatically bump `[requirements]` to the latest version or align with `[toolchain]`.
     **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all dependencies.
 
-Then install:
+Then install (this will also download any missing dependencies to `.mops`):
 
 ```bash
 mops install
@@ -339,7 +342,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 1. **Don't blindly bump major versions.** If a dependency from `mops.one` has a new major version number (e.g., `1.x` to `2.x`), you **MUST** read the CHANGELOG of that package. The API likely changed. If the migration is non-trivial, flag it to the user.
 
-2. **Alignment of `[requirements] moc` version.** While you shouldn't *blindly* bump it for every minor change, you **MUST** ensure it is aligned with the `[toolchain] moc` version if any dependencies require a newer compiler than currently declared. Keeping `[requirements] moc` at an old version (like `1.0.0`) while the toolchain is at `1.7.0` and dependencies require `1.4.1` is a configuration error that causes installation warnings and build failures for consumers.
+2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you **MUST** ensure it is at least the highest version required by any of your dependencies. For example, if your dependencies require `moc >= 1.6.0`, but your `[requirements] moc` is `1.0.0`, you must update it to `1.6.0`. Avoid setting it to the latest `[toolchain] moc` version (e.g., `1.7.0`).
 
 3. **Lock file drift.** Always run `mops install` after editing
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
