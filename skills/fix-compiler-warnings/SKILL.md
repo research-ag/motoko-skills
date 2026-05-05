@@ -1,17 +1,27 @@
 ---
 name: motoko-compiler-warnings-fixes
-description: "Guidelines for fixing Motoko compiler warnings (moc). Use when asked to fix, suppress, or clean up Motoko compiler warnings from `dfx build --check`."
+description: "Guidelines for fixing Motoko compiler warnings (moc). Use when asked to fix, suppress, or clean up Motoko compiler warnings from `dfx build --check` or `moc --check`."
 ---
 
 # Fixing Motoko Compiler Warnings
 
 ## How to Run the Build Check
 
+### For DFX projects:
+
 ```bash
 dfx build --check 2>&1 | tee /tmp/dfx_build_output.txt
 ```
 
 This type-checks all canisters without deploying. Redirect stderr to capture warnings. The build takes several minutes for large projects.
+
+### For MOPS packages:
+
+```bash
+moc --check $(mops sources) **/*.mo 2>&1 | tee /tmp/moc_check_output.txt
+```
+
+This uses `moc --check` to treat warnings as errors. It is often faster than a full `dfx build --check` and is ideal for standalone Motoko packages.
 
 To count warnings by type:
 ```bash
@@ -119,12 +129,15 @@ Also applies to `transient var` → `transient let` and `stable var` → `stable
 
 ## General Strategy
 
-1. Run `dfx build --check` and capture output
-2. Count warnings by code to prioritize
-3. Fix one warning type at a time
-4. After bulk fixes, always rebuild to verify no new errors were introduced
-5. Watch for **type errors (M0096)** after renaming — they indicate you broke a type signature
-6. Record field renames in IC interface functions will cause cascading type errors
+**IMPORTANT: Progress in stages.** Fix one type of error/warning at a time, then run tests/benchmarks again, before advancing to the next error type.
+
+1. Run the build check (see above) and capture output.
+2. Count warnings by code to prioritize.
+3. Fix ONE warning type at a time (e.g., all M0194, then all M0244).
+4. After each stage of fixes, always rebuild/recheck to verify no new errors were introduced.
+5. Run tests and benchmarks to ensure no behavioral regressions.
+6. Watch for **type errors (M0096)** after renaming — they indicate you broke a type signature
+7. Record field renames in IC interface functions will cause cascading type errors
 
 ## Environment Notes
 

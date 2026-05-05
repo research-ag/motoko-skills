@@ -1,6 +1,6 @@
 ---
 name: motoko-mops-package-maintenance
-description: Automate maintaining a Motoko mops package — upgrade dependencies, run tests and benchmarks, fix breakages, update CHANGELOG, review doc strings and docs, run the formatter, and prepare a patch release on a new git branch.
+description: Automate maintaining a Motoko mops package — upgrade dependencies, fix compiler warnings, run tests and benchmarks, fix breakages, update CHANGELOG, review doc strings and docs, run the formatter, and prepare a patch release on a new git branch.
 ---
 
 # Mops Package Maintenance
@@ -117,6 +117,17 @@ moc = "1.6.0"
 - `package-lock.json`: If it does NOT exist, do NOT introduce it.
 - `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it.
 
+### Step 2c — Fix compiler warnings
+
+Run the `fix-compiler-warnings` skill as a sub-task.
+
+1. Run `moc --check $(mops sources) **/*.mo`. This command treats compiler warnings as errors.
+2. If warnings/errors are found:
+    - Fix one type of error at a time.
+    - Re-run the check to verify the fix.
+    - Run `mops test` or `mops bench` if relevant to ensure no regressions.
+    - Repeat until all warnings are resolved.
+
 ### Step 3 — Run tests
 
 ```bash
@@ -211,21 +222,41 @@ Maintenance PRs should be automatically formatted or checked by CI. Your job is 
 
 #### 8a — Check for Prettier Configuration
 
-Check if a `.prettierrc` file exists at the repo root. If not, and the project uses Motoko, you may suggest or create one so that CI knows which plugins to use:
+Check if a `.prettierrc` file exists at the repo root.
+
+1. If it does NOT exist, create one with the following content.
+2. If it DOES exist but is "simple" (e.g., only contains `tabWidth`), replace it with the following content.
+
+Recommended `.prettierrc`:
 
 ```json
 {
-  "plugins": ["prettier-plugin-motoko"]
+    "plugins": ["prettier-plugin-motoko"],
+    "bracketSpacing": true,
+    "printWidth": 80,
+    "semi": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "useTabs": false
 }
 ```
 
 #### 8b — Verify or Add CI Step
 
-Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`). If no formatting check exists, suggest adding one. The command should use `npx` to avoid requiring a local `package.json`:
+Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
+
+1. If no formatting check exists, suggest adding one using `npx`:
 
 ```yaml
 - name: Prettier Check
   run: npx -p prettier -p prettier-plugin-motoko prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
+```
+
+2. Also include a check for compiler warnings. Using `moc --check` ensures that warnings are treated as errors and will fail the CI build:
+
+```yaml
+- name: Compiler Check
+  run: moc --check $(mops sources) **/*.mo
 ```
 
 **Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.
