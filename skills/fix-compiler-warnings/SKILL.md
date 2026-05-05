@@ -129,6 +129,8 @@ Also applies to `transient var` → `transient let` and `stable var` → `stable
 
 ## General Strategy
 
+**CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error (Mxxxx) was produced by the compiler for that specific line and issue. Never apply "fixes" for perceived issues that the compiler does not actually complain about. For example, do NOT change dot-notation to module calls unless the compiler explicitly reports a warning or error on that line.
+
 **IMPORTANT: Progress in stages.** Fix one type of error/warning at a time, then run tests/benchmarks again, before advancing to the next error type.
 
 1. Run the build check (see above) and capture output.

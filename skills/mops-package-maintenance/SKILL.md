@@ -121,6 +121,8 @@ moc = "1.6.0"
 
 Run the `fix-compiler-warnings` skill as a sub-task.
 
+**CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error was produced by `moc --check`. Never apply "improvements" or "fixes" for perceived issues that the compiler does not actually complain about.
+
 1. Run `moc --check $(mops sources) **/*.mo`. This command treats compiler warnings as errors.
 2. If warnings/errors are found:
     - Fix one type of error at a time.
