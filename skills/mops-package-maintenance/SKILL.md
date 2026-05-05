@@ -44,7 +44,20 @@ git checkout -b chore/dependency-bump-$(date +%Y-%m-%d)
 
 All subsequent changes are committed on this branch.
 
-### Step 1 — Discover outdated dependencies
+### Step 1 — Verify Package Quality on MOPS
+
+1. Open `mops.toml` and check if it has a `[package]` section. If it only has `[canister]` sections or neither, this is not a published package; skip to Step 2.
+2. If it is a package, find the `name` field under `[package]`.
+3. Go to `https://mops.one/<name>` (replace `<name>` with the package name).
+4. Locate the **Package Quality** section on the page.
+5. Review the status of each quality metric (e.g., Documentation, License, Repository, Tests, Benchmarks).
+6. If any metric is not **"yes"** or **"100%"**, attempt to fix it:
+    - **Documentation < 100%**: You MUST run the `motoko-doc-strings` skill to improve doc-string coverage.
+    - **Missing License/Repository**: Ensure these fields are correctly set in `mops.toml` `[package]` section.
+    - **Tests/Benchmarks failing**: These will be addressed in Step 4 and Step 5.
+7. If a quality issue cannot be fixed automatically, raise a warning to the user.
+
+### Step 2 — Discover outdated dependencies
 
 Open `mops.toml` and list every dependency under `[dependencies]` and
 `[dev-dependencies]`.
@@ -60,7 +73,7 @@ mops search <package-name>
 Compare the installed version with the latest version. Record which
 packages need upgrading.
 
-### Step 2 — Upgrade dependencies in `mops.toml`
+### Step 3 — Upgrade dependencies in `mops.toml`
 
 For each outdated dependency in `[dependencies]` and `[dev-dependencies]`, update the version string in `mops.toml`
 to the latest version.
@@ -79,7 +92,7 @@ mops install
 
 Verify the lock file updated cleanly and there are no resolution errors.
 
-#### Step 2a — Sync nested `mops.toml` files (examples, sub-projects)
+#### Step 3a — Sync nested `mops.toml` files (examples, sub-projects)
 
 Search the repository for any additional `mops.toml` files outside the
 root (commonly under `examples/`, `bench/`, or sub-canister folders):
@@ -109,7 +122,7 @@ self-package-name = "../"   # local path to self
 moc = "1.6.0"
 ```
 
-#### Step 2b — Audit repo hygiene files
+#### Step 3b — Audit repo hygiene files
 
 - `.gitignore`: Ignore `node_modules/`, build artifacts, IDE directories (e.g. `.idea/`, `.vscode/`),
   agent-specific directories (e.g. `.agents/`, `.junie/`, `.claude/`, `.copilot/`),
@@ -117,7 +130,7 @@ moc = "1.6.0"
 - `package-lock.json`: If it does NOT exist, do NOT introduce it.
 - `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it.
 
-### Step 2c — Fix compiler warnings
+### Step 3c — Fix compiler warnings
 
 Run the `fix-compiler-warnings` skill as a sub-task.
 
@@ -130,7 +143,7 @@ Run the `fix-compiler-warnings` skill as a sub-task.
     - Run `mops test` or `mops bench` if relevant to ensure no regressions.
     - Repeat until all warnings are resolved.
 
-### Step 3 — Run tests
+### Step 4 — Run tests
 
 ```bash
 mops test
@@ -148,7 +161,7 @@ If a fix requires non-trivial changes (renamed functions, changed
 signatures, new semantics), note each change — you will need it for the
 CHANGELOG.
 
-### Step 4 — Run benchmarks
+### Step 5 — Run benchmarks
 
 ```bash
 mops bench
@@ -156,16 +169,16 @@ mops bench
 
 If benchmarks fail to compile or run:
 
-1. Apply the same kind of fixes as in Step 3.
+1. Apply the same kind of fixes as in Step 4.
 2. Re-run until benchmarks complete.
 
 If benchmarks show a significant regression, note it for the CHANGELOG
 but do not block the release unless the user explicitly asks.
 
-### Step 5 — Update the CHANGELOG
+### Step 6 — Update the CHANGELOG
 
 Open (or create) `CHANGELOG.md`. Add a new section at the top for the
-upcoming version (you will finalize the version number in Step 9).
+upcoming version (you will finalize the version number in Step 10).
 
 Required bullet points:
 
@@ -194,7 +207,7 @@ create one with this format:
 - Adapted `<function>` to new `<dep>` API (renamed `old` → `new`).
 ```
 
-### Step 6 — Review and improve doc strings
+### Step 7 — Review and improve doc strings
 
 Scan every `.mo` file under `src/` for public declarations. For each
 public `type`, `func`, `actor`, `actor class`, `let`, and `module`:
@@ -208,7 +221,7 @@ public `type`, `func`, `actor`, `actor class`, `let`, and `module`:
 
 If a `motoko-doc-strings` skill is installed, follow its full checklist.
 
-### Step 7 — Review README and other Markdown files
+### Step 8 — Review README and other Markdown files
 
 Read `README.md` and every other `.md` file in the repository. For each:
 
@@ -218,11 +231,11 @@ Read `README.md` and every other `.md` file in the repository. For each:
 4. Add any new sections that would help users (e.g., new API surface
    from upgraded deps).
 
-### Step 8 — Ensure CI Formatting
+### Step 9 — Ensure CI Formatting
 
 Maintenance PRs should be automatically formatted or checked by CI. Your job is to ensure the repository has this capability without introducing unnecessary `package.json` files.
 
-#### 8a — Check for Prettier Configuration
+#### 9a — Check for Prettier Configuration
 
 Check if a `.prettierrc` file exists at the repo root.
 
@@ -243,7 +256,7 @@ Recommended `.prettierrc`:
 }
 ```
 
-#### 8b — Verify or Add CI Step
+#### 9b — Verify or Add CI Step
 
 Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 
@@ -263,7 +276,7 @@ Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 
 **Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.
 
-### Step 9 — Bump the version
+### Step 10 — Bump the version
 
 Open `mops.toml` and increment the **patch** version. For example, if the
 current version is `1.2.3`, change it to `1.2.4`.
@@ -280,7 +293,7 @@ Update the CHANGELOG `[Unreleased]` header to the new version number:
 ## [1.2.4]
 ```
 
-### Step 10 — Commit and push
+### Step 11 — Commit and push
 
 Stage all changes:
 
