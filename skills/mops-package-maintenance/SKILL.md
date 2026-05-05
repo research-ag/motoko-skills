@@ -136,7 +136,7 @@ Run the `fix-compiler-warnings` skill as a sub-task.
 
 **CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error was produced by `moc --check`. Never apply "improvements" or "fixes" for perceived issues that the compiler does not actually complain about.
 
-1. Run `moc --check $(mops sources) **/*.mo`. This command treats compiler warnings as errors.
+1. Run `find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)`. This runs the check on each file individually.
 2. If warnings/errors are found:
     - Fix one type of error at a time.
     - Re-run the check to verify the fix.
@@ -271,7 +271,7 @@ Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 
 ```yaml
 - name: Compiler Check
-  run: moc --check $(mops sources) **/*.mo
+  run: find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)
 ```
 
 **Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.

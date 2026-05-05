@@ -18,10 +18,10 @@ This type-checks all canisters without deploying. Redirect stderr to capture war
 ### For MOPS packages:
 
 ```bash
-moc --check $(mops sources) **/*.mo 2>&1 | tee /tmp/moc_check_output.txt
+find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources) 2>&1 | tee /tmp/moc_check_output.txt
 ```
 
-This uses `moc --check` to treat warnings as errors. It is often faster than a full `dfx build --check` and is ideal for standalone Motoko packages.
+This uses `moc --check` on each file individually to avoid excessive warnings. It is often faster than a full `dfx build --check` and is ideal for standalone Motoko packages.
 
 To count warnings by type:
 ```bash

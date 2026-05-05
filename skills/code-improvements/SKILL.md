@@ -42,7 +42,7 @@ Safety first:
 - Keep diffs minimal and readable
 
 Acceptance Criteria
-- No compiler errors or warnings introduced by the changes. Run `moc --check $(mops sources) **/*.mo` to verify (esp. for missing imports).
+- No compiler errors or warnings introduced by the changes. Run `find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)` to verify (esp. for missing imports).
 - No behavior changes; public interfaces unchanged unless stylistic
 - Imports are aggregated into three sections — (1) `mo:core/...`, (2) other `mo:*/...` from mops/third‑party, (3) local project modules — and each section is alphabetized; no truly unused `import`s remain
 - Dot‑notation is consistently used where directly supported
@@ -643,7 +643,7 @@ rg -n --glob '!**/.mops/**' --glob '**/*.mo' '^import .*"mo:core/([A-Za-z/]+)";'
     - F. Aggregate imports into the three sections and sort each section alphabetically (Core → Third‑party mo:* → Local)
     - G. Replace `Text.encodeUtf8("<literal>")` with `"<literal>"` where the target type is `Blob`.
 3) After each file: compile; if failure due to missing import, restore and mark mapping
-4) After each category across repo: run a full build (using `moc --check $(mops sources) **/*.mo` for MOPS packages) and optionally tests
+4) After each category across repo: run a full build (using `find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)` for MOPS packages) and optionally tests
 5) Produce a short report of changes and any edge cases deferred for manual review
 
 ---
