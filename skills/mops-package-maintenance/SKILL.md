@@ -264,6 +264,11 @@ Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 If no formatting check exists, suggest adding one that automatically formats and commits changes:
 
 ```yaml
+- name: Checkout repository
+  uses: actions/checkout@v4
+  with:
+    ref: ${{ github.head_ref }}
+    fetch-depth: 0
 - name: Prettier Check and Format
   run: |
     npm install prettier prettier-plugin-motoko --no-save
@@ -273,8 +278,7 @@ If no formatting check exists, suggest adding one that automatically formats and
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action"
     git add -u
-    git diff-index --quiet HEAD || git commit -m "chore: format code with prettier"
-    git push
+    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git push origin HEAD:${{ github.head_ref }})
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
