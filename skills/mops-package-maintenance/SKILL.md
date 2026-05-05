@@ -25,11 +25,11 @@ automated pass.
 The following tools must be available on the machine:
 
 - `mops` CLI (install: `npm i -g ic-mops`)
-- `moc` (Motoko compiler, ships with `dfx`)
-- `dfx` (DFINITY SDK)
+- `moc` (Motoko compiler; usually ships with `dfx`, but can be standalone)
+- `dfx` (DFINITY SDK; optional if `moc` and `mops` are otherwise available)
 - `node` / `npm`
 - `git`
-- `prettier` and `prettier-plugin-motoko` (installed locally per step below)
+- `prettier` and `prettier-plugin-motoko` (run via `npx`)
 
 ## Workflow
 
@@ -90,7 +90,7 @@ find . -name mops.toml -not -path "./node_modules/*" -not -path "./.mops/*"
 
 For **every** nested `mops.toml`, ensure:
 
-- Third-party `[dependencies]` versions match the root.
+- Third-party `[dependencies]` versions **usually** match the root. Examples may occasionally have extra dependencies, but common ones should be in sync.
 - `[toolchain] moc` matches the root, and the version exists in the
   fork used by the CI `setup-mops` action.
 - The package being maintained references itself by a **relative local
@@ -111,14 +111,11 @@ moc = "1.6.0"
 
 #### Step 2b — Audit repo hygiene files
 
-`.gitignore`: do NOT ignore `package-lock.json` — committing it
-  ensures deterministic, reproducible installs across CI and dev.
-  Ignore `node_modules/`, build artifacts, IDE directories (e.g. `.idea/`, `.vscode/`),
+- `.gitignore`: Ignore `node_modules/`, build artifacts, IDE directories (e.g. `.idea/`, `.vscode/`),
   agent-specific directories (e.g. `.agents/`, `.junie/`, `.claude/`, `.copilot/`),
   and `skills-lock.json`.
-- `package.json` `license` MUST match `mops.toml` `[package] license`.
-  Mismatched license metadata produces incorrect data for npm consumers
-  and is a compliance risk.
+- `package-lock.json`: If it does NOT exist, do NOT introduce it.
+- `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it.
 
 ### Step 3 — Run tests
 
@@ -160,7 +157,7 @@ upcoming version (you will finalize the version number in Step 9).
 Required bullet points:
 
 - **Dependencies bumped** — list every dependency that was upgraded and
-  its old → new version.
+  its old → new version. (Note: Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]`).
 - **Breaking / notable changes** — if any source code had to change to
   accommodate new APIs, describe what changed and why.
 - **Bug fixes** — if any bugs were discovered and fixed during the
@@ -208,11 +205,13 @@ Read `README.md` and every other `.md` file in the repository. For each:
 4. Add any new sections that would help users (e.g., new API surface
    from upgraded deps).
 
-### Step 8 — Format the code with Prettier
+### Step 8 — Ensure CI Formatting
 
-#### 8a — Ensure Prettier and the Motoko plugin are available
+Maintenance PRs should be automatically formatted or checked by CI. Your job is to ensure the repository has this capability without introducing unnecessary `package.json` files.
 
-Check if a `.prettierrc` file exists at the repo root. If not, create one:
+#### 8a — Check for Prettier Configuration
+
+Check if a `.prettierrc` file exists at the repo root. If not, and the project uses Motoko, you may suggest or create one so that CI knows which plugins to use:
 
 ```json
 {
@@ -220,33 +219,16 @@ Check if a `.prettierrc` file exists at the repo root. If not, create one:
 }
 ```
 
-Install Prettier and the Motoko plugin locally:
+#### 8b — Verify or Add CI Step
 
-```bash
-npm install --save-dev prettier prettier-plugin-motoko
+Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`). If no formatting check exists, suggest adding one. The command should use `npx` to avoid requiring a local `package.json`:
+
+```yaml
+- name: Prettier Check
+  run: npx -p prettier -p prettier-plugin-motoko prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
-If a `package.json` does not exist, initialize one first and remove the default "scripts" section to avoid failing CI jobs, and mark it as private to prevent accidental publishing:
-
-```bash
-npm init -y
-# Remove the default scripts section and mark as private
-node -e "const pkg=require('./package.json'); delete pkg.scripts; pkg.private=true; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2))"
-npm install --save-dev prettier prettier-plugin-motoko
-```
-
-#### 8b — Run the formatter
-
-```bash
-npx prettier --write '**/*.{mo,json,md}'
-```
-
-After formatting, re-run tests to make sure formatting did not break
-anything (it shouldn't, but verify):
-
-```bash
-mops test
-```
+**Note:** Do not run `prettier --write` as part of this maintenance workflow. Formatting is now handled separately in CI.
 
 ### Step 9 — Bump the version
 
@@ -290,10 +272,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 ## Common Pitfalls
 
-1. **Don't blindly bump major versions.** A dependency going from `1.x`
-   to `2.x` likely has breaking changes. Read the dependency's CHANGELOG
-   or release notes before upgrading. If the migration is non-trivial,
-   flag it to the user.
+1. **Don't blindly bump major versions.** If a dependency from `mops.one` has a new major version number (e.g., `1.x` to `2.x`), you **MUST** read the CHANGELOG of that package. The API likely changed. If the migration is non-trivial, flag it to the user.
 
 2. **Don't blindly bump `[requirements] moc` version.** While the `[toolchain] moc` version should be kept up to date, the `moc` version in `[requirements]` should NOT be changed to the latest version (e.g., from `1.3.0` to `1.6.0`) unless absolutely necessary. Check the `moc` changelog for breaking changes before considering an upgrade to the requirements.
 
@@ -301,30 +280,24 @@ Ready for review. Run `git push -u origin HEAD` to push.
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
    lock file.
 
-4. **Formatter changes tests.** `prettier-plugin-motoko` may reformat
-   test files. This is fine — the formatting is canonical. But always
-   re-run tests afterward to confirm nothing broke.
-
-5. **Missing `node_modules` in `.gitignore`.** After running `npm install`,
+4. **Missing `node_modules` in `.gitignore`.** After running `npm install`,
    make sure `node_modules/` is listed in `.gitignore`. Add it if missing.
 
-6. **CHANGELOG ordering.** Newest version goes at the top. Don't append
+5. **CHANGELOG ordering.** Newest version goes at the top. Don't append
    to the bottom.
 
-7. **Don't skip the doc-string review.** Even if no code changed, the AI
+6. **Don't skip the doc-string review.** Even if no code changed, the AI
    may have improved since the last pass and can now write better docs.
    Always do a full scan.
 
 ## Verify It Works
 
-After completing all steps, run the full validation suite one final time:
+After completing all steps, run the validation suite:
 
 ```bash
 mops install
 mops test
 mops bench
-npx prettier --check '**/*.{mo,json,md}'
 ```
 
-All four commands must succeed with no errors. If `prettier --check`
-reports unformatted files, run `npx prettier --write '**/*.{mo,json,md}'` again and re-run this validation before re-committing.
+All commands must succeed with no errors. (Note: Prettier formatting is verified by CI after the PR is created).
