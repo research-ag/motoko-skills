@@ -82,8 +82,8 @@ to the latest version.
 **Upgrading `moc`:**
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
 - `[requirements] moc`: Do NOT upgrade this unless:
-  1. It is absolutely necessary to support an upgraded dependency.
-  2. You have verified the `moc` changelog for breaking changes and are prepared to fix any resulting issues.
+    1. It is absolutely necessary to support an upgraded dependency.
+    2. You have verified the `moc` changelog for breaking changes and are prepared to fix any resulting issues.
 
 Then install:
 
@@ -184,7 +184,7 @@ upcoming version (you will finalize the version number in Step 10).
 Required bullet points:
 
 - **Dependencies bumped** — list every dependency from the `[dependencies]` or `[dev-dependencies]` sections that was upgraded and its old → new version.
-  - **CRITICAL:** Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]` or actual library dependencies. Even if you upgraded `[toolchain] moc` in Step 3, do NOT list it in the CHANGELOG.
+    - **CRITICAL:** Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]` or actual library dependencies. Even if you upgraded `[toolchain] moc` in Step 3, do NOT list it in the CHANGELOG.
 - **Breaking / notable changes** — if any source code had to change to
   accommodate new APIs, describe what changed and why.
 - **Bug fixes** — if any bugs were discovered and fixed during the
@@ -252,13 +252,13 @@ Recommended `.prettierrc`:
 
 ```json
 {
-    "plugins": ["prettier-plugin-motoko"],
-    "bracketSpacing": true,
-    "printWidth": 80,
-    "semi": true,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "useTabs": false
+  "plugins": ["prettier-plugin-motoko"],
+  "bracketSpacing": true,
+  "printWidth": 80,
+  "semi": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "useTabs": false
 }
 ```
 
@@ -283,7 +283,7 @@ If no formatting check exists, suggest adding one that automatically formats and
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action"
     git add -u
-    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git push origin HEAD:${{ github.head_ref }})
+    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git pull --rebase origin ${{ github.head_ref }} && git push origin HEAD:${{ github.head_ref }})
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
