@@ -88,7 +88,7 @@ to the latest version.
        ```
     2. If the highest requirement among dependencies is higher than your current version in `[requirements]`, update yours to match that highest requirement.
     3. Do NOT automatically bump `[requirements]` to the latest version or align with `[toolchain]`.
-    **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all dependencies.
+       **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all dependencies.
 
 Then install (this will also download any missing dependencies to `.mops`):
 
@@ -277,18 +277,21 @@ If no formatting check exists, suggest adding one that automatically formats and
 - name: Checkout repository
   uses: actions/checkout@v4
   with:
-    ref: ${{ github.head_ref }}
+    repository: ${{ github.event.pull_request.head.repo.full_name }}
+    ref: ${{ github.event.pull_request.head.ref }}
     fetch-depth: 0
 - name: Prettier Check and Format
   run: |
     npm install prettier prettier-plugin-motoko --no-save
     npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 - name: Commit formatted files
+  env:
+    GITHUB_HEAD_REF: ${{ github.event.pull_request.head.ref }}
   run: |
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action"
     git add -u
-    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git pull --rebase origin ${{ github.head_ref }} && git push origin HEAD:${{ github.head_ref }})
+    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git pull --rebase origin "$GITHUB_HEAD_REF" && git push origin HEAD:"$GITHUB_HEAD_REF")
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
