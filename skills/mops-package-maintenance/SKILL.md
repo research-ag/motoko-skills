@@ -52,7 +52,8 @@ All subsequent changes are committed on this branch.
 4. Locate the **Package Quality** section on the page.
 5. Review the status of each quality metric (e.g., Documentation, License, Repository, Tests, Benchmarks).
 6. If any metric is not **"yes"** or **"100%"**, attempt to fix it:
-    - **Documentation < 100%**: You MUST run the `motoko-doc-strings` skill to improve doc-string coverage.
+    - **Documentation < 95%**: You MUST run the `motoko-doc-strings` skill to improve doc-string coverage.
+    - **Documentation >= 95%**: Skip documentation improvements. Do NOT run the `motoko-doc-strings` skill, and skip Step 7 and Step 8.
     - **Missing License/Repository**: Ensure these fields are correctly set in `mops.toml` `[package]` section.
     - **Tests/Benchmarks failing**: These will be addressed in Step 4 and Step 5.
 7. If a quality issue cannot be fixed automatically, raise a warning to the user.
@@ -210,6 +211,8 @@ create one with this format:
 
 ### Step 7 — Review and improve doc strings
 
+**Note:** If you determined in Step 1 that the MOPS Documentation quality is >= 95%, SKIP this step entirely.
+
 Scan every `.mo` file under `src/` for public declarations. For each
 public `type`, `func`, `actor`, `actor class`, `let`, and `module`:
 1. Check that a `///` doc string exists directly above the declaration.
@@ -223,6 +226,8 @@ public `type`, `func`, `actor`, `actor class`, `let`, and `module`:
 If a `motoko-doc-strings` skill is installed, follow its full checklist.
 
 ### Step 8 — Review README and other Markdown files
+
+**Note:** If you determined in Step 1 that the MOPS Documentation quality is >= 95%, SKIP this step entirely.
 
 Read `README.md` and every other `.md` file in the repository. For each:
 
@@ -344,9 +349,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 5. **CHANGELOG ordering.** Newest version goes at the top. Don't append
    to the bottom.
 
-6. **Don't skip the doc-string review.** Even if no code changed, the AI
-   may have improved since the last pass and can now write better docs.
-   Always do a full scan.
+6. **Respect the documentation quality threshold.** If the MOPS documentation quality is >= 95%, do NOT perform a full doc-string review or README update. This avoids unnecessary noise and minor changes that don't significantly improve the package quality when it's already at a high standard. Only perform a full scan if quality is < 95% or if the package is not yet published.
 
 7. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
 
