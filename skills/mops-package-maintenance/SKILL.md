@@ -29,7 +29,7 @@ The following tools must be available on the machine:
 - `dfx` (DFINITY SDK; optional if `moc` and `mops` are otherwise available)
 - `node` / `npm`
 - `git`
-- `prettier` and `prettier-plugin-motoko` (run via `npx`)
+- `prettier` and `prettier-plugin-motoko` (run via `npx -y`)
 
 ## Workflow
 
@@ -128,7 +128,7 @@ moc = "1.6.0"
   agent-specific directories (e.g. `.agents/`, `.junie/`, `.claude/`, `.copilot/`),
   and `skills-lock.json`.
 - `package-lock.json`: If it does NOT exist, do NOT introduce it.
-- `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it.
+- `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
 
 ### Step 3c — Fix compiler warnings
 
@@ -256,15 +256,24 @@ Recommended `.prettierrc`:
 }
 ```
 
-#### 9b — Verify or Add Prettier Check
+#### 9b — Verify or Add Prettier Check and Format
 
 Search for GitHub Action workflows (e.g., `.github/workflows/*.yml`).
 
-If no formatting check exists, suggest adding one using `npx`:
+If no formatting check exists, suggest adding one that automatically formats and commits changes:
 
 ```yaml
-- name: Prettier Check
-  run: npx -p prettier -p prettier-plugin-motoko prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
+- name: Prettier Check and Format
+  run: |
+    npm install prettier prettier-plugin-motoko --no-save
+    npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
+- name: Commit formatted files
+  run: |
+    git config --local user.email "action@github.com"
+    git config --local user.name "GitHub Action"
+    git add -u
+    git diff-index --quiet HEAD || git commit -m "chore: format code with prettier"
+    git push
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
@@ -290,11 +299,14 @@ Update the CHANGELOG `[Unreleased]` header to the new version number:
 
 ### Step 11 — Commit and push
 
-Stage all changes:
+Stage all changes. **CRITICAL:** If `package.json` or `package-lock.json` did not exist at the start of the task, do NOT commit them if they were created during the process (e.g., by `npm install`).
 
 ```bash
 git add -A
 git restore --staged .idea .vscode .agents .junie .claude .copilot skills-lock.json
+# Do not commit package.json if it was just created
+git status --porcelain | grep "^A  package.json" && git restore --staged package.json || true
+git status --porcelain | grep "^A  package-lock.json" && git restore --staged package-lock.json || true
 git status
 ```
 
