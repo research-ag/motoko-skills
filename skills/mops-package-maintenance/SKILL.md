@@ -297,7 +297,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+    types: [synchronize, opened, reopened, ready_for_review, unlabeled]
 
 jobs:
   check:
