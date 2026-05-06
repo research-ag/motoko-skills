@@ -146,9 +146,25 @@ moc = "1.6.0"
 
 Run the `fix-compiler-warnings` skill as a sub-task.
 
-**CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error was produced by `moc --check`. Never apply "improvements" or "fixes" for perceived issues that the compiler does not actually complain about.
+**CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error was produced by the compiler. Never apply "improvements" or "fixes" for perceived issues that the compiler does not actually complain about.
 
-1. Run `find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources)`. This runs the check on each file individually.
+1. Run the build check to capture warnings. Choose the command based on the project type:
+
+   #### For DFX projects:
+   ```bash
+   dfx build --check 2>&1 | tee /tmp/dfx_build_output.txt
+   ```
+
+   #### For MOPS packages:
+   ```bash
+   find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) --check $(mops sources) 2>&1 | tee /tmp/moc_check_output.txt
+   ```
+
+   #### For ICP-CLI projects:
+   ```bash
+   icp build --check 2>&1 | tee /tmp/icp_build_output.txt
+   ```
+
 2. If warnings/errors are found:
     - Fix one type of error at a time.
     - Re-run the check to verify the fix.

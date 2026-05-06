@@ -23,9 +23,17 @@ find src -type f -name "*.mo" -print0 | xargs -0 -n1 $(mops toolchain bin moc) -
 
 This uses `moc --check` on each file individually to avoid excessive warnings. It is often faster than a full `dfx build --check` and is ideal for standalone Motoko packages.
 
+### For ICP-CLI projects:
+
+```bash
+icp build --check 2>&1 | tee /tmp/icp_build_output.txt
+```
+
+This uses the modern `icp-cli` tool to type-check the project.
+
 To count warnings by type:
 ```bash
-grep -o 'M0[0-9]*' /tmp/dfx_build_output.txt | sort | uniq -c | sort -rn
+grep -o 'M[0-9][0-9][0-9][0-9]' /tmp/*_output.txt | sort | uniq -c | sort -rn
 ```
 
 ---
