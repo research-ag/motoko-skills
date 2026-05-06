@@ -286,15 +286,30 @@ npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 
 Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
-If no formatting check exists, suggest adding one that only checks the formatting and fails if there are any errors. This ensures all contributions follow the style guide.
+Ensure there is a **separate** GitHub Action workflow file (e.g., `.github/workflows/prettier.yml`) dedicated to checking code formatting. This keeps the formatting check independent and easy to manage.
+
+If it doesn't exist, create `.github/workflows/prettier.yml` with the following content:
 
 ```yaml
-- name: Checkout repository
-  uses: actions/checkout@v6
-- name: Prettier Check
-  run: |
-    npm install prettier prettier-plugin-motoko --no-save
-    npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
+name: Prettier Check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Prettier Check
+        run: |
+          npm install prettier prettier-plugin-motoko --no-save
+          npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
