@@ -302,7 +302,7 @@ npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 
 Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
-Ensure there is a **separate** GitHub Action workflow file (e.g., `.github/workflows/prettier.yml`) dedicated to checking code formatting. This keeps the formatting check independent and easy to manage.
+Ensure there is a **separate** GitHub Actions workflow file (e.g., `.github/workflows/prettier.yml`) dedicated to checking code formatting. This keeps the formatting check independent and easy to manage.
 
 If it doesn't exist, create `.github/workflows/prettier.yml` with the following content:
 
