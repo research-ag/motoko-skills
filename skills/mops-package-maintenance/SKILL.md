@@ -247,10 +247,11 @@ Read `README.md` and every other `.md` file in the repository. For each:
 3. Improve clarity, grammar, and completeness where possible.
 4. Add any new sections that would help users (e.g., new API surface
    from upgraded deps).
+5. **Format Instruction:** Ensure `README.md` contains instructions on how to format the code (e.g., `npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'`). Add it to a "Development" or "Formatting" section if missing.
 
-### Step 9 — Ensure CI Formatting
+### Step 9 — Formatting
 
-Maintenance PRs should be automatically formatted or checked by CI. Your job is to ensure the repository has this capability without introducing unnecessary `package.json` files.
+Maintain a consistent code style by formatting the repository with Prettier and ensuring CI enforces this.
 
 #### 9a — Check for Prettier Configuration
 
@@ -273,36 +274,30 @@ Recommended `.prettierrc`:
 }
 ```
 
-#### 9b — Verify or Add Prettier Check and Format
+#### 9b — Format the code
+
+Run Prettier to format all supported files:
+
+```bash
+npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
+```
+
+#### 9c — Verify or Add Prettier Check to CI
 
 Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
-If no formatting check exists, suggest adding one that automatically formats and commits changes:
+If no formatting check exists, suggest adding one that only checks the formatting and fails if there are any errors. This ensures all contributions follow the style guide.
 
 ```yaml
 - name: Checkout repository
-  uses: actions/checkout@v4
-  with:
-    repository: ${{ github.event.pull_request.head.repo.full_name }}
-    ref: ${{ github.event.pull_request.head.ref }}
-    fetch-depth: 0
-- name: Prettier Check and Format
+  uses: actions/checkout@v6
+- name: Prettier Check
   run: |
     npm install prettier prettier-plugin-motoko --no-save
-    npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
-- name: Commit formatted files
-  env:
-    GITHUB_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-  run: |
-    git config --local user.email "action@github.com"
-    git config --local user.name "GitHub Action"
-    git add -u
-    git diff-index --quiet HEAD || (git commit -m "chore: format code with prettier" && git pull --rebase origin "$GITHUB_HEAD_REF" && git push origin HEAD:"$GITHUB_HEAD_REF")
+    npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
-
-**Note:** Do not run `prettier --write` manually as part of this maintenance flow; CI handles automatic formatting (see Step 9b for CI usage).
 
 ### Step 10 — Bump the version
 
@@ -379,4 +374,4 @@ mops test
 mops bench
 ```
 
-All commands must succeed with no errors. (Note: Prettier formatting is verified by CI after the PR is created).
+All commands must succeed with no errors.
