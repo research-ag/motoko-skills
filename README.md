@@ -66,11 +66,11 @@ Each skill is a directory under `skills/**/SKILL.md` with frontmatter that the C
 - motoko-core-code-improvements — Optional cleanups for mo:core projects (import order, unused imports, return removal, etc.).
 - motoko-general-style-guidelines — Comprehensive Motoko style guidelines to improve readability and consistency.
 - motoko-performance-optimizations — General performance optimization techniques (allocation reduction, fixed-width arithmetic, block processing, efficient Text building).
-- motoko-mops-package-maintenance — Automate maintaining a Motoko mops package — upgrade dependencies, run tests and benchmarks, fix breakages, update CHANGELOG, review docs, run the formatter, and prepare a patch release.
+- motoko-mops-package-maintenance — Automate maintaining a Motoko mops package — upgrade dependencies, fix compiler warnings, run tests and benchmarks, fix breakages, update CHANGELOG, review doc strings and docs, run the formatter, and prepare a patch release on a new git branch.
 - motoko-github-ci-workflow — Add a GitHub CI workflow for PRs to a Motoko repository, including mops tests, benchmarks, formatting checks, and building canisters or examples.
-- motoko-doc-strings — Add `///` doc strings to public objects in Motoko modules so that `mo-doc` produces useful HTML/Markdown documentation.
-- motoko-benchmarks-generation — How to write benchmarks in Motoko using `bench-helper`.
-- motoko-compiler-warnings-fixes — Guidelines for fixing Motoko compiler warnings (`moc`).
+- motoko-doc-strings — Add `///` doc strings to public objects in Motoko modules so that `mo-doc` produces useful HTML/Markdown documentation. Covers placement rules, formatting, code examples, common pitfalls, and a verification workflow.
+- motoko-benchmarks-generation — How to write benchmarks in Motoko using bench‑helper. Covers project setup (mops.toml), bench file layout in bench/*.bench.mo, the Bench.Schema rows/cols model, and safe patterns for encode/decode, hashing, crypto, and allocation benches.
+- motoko-compiler-warnings-fixes — Guidelines for fixing Motoko compiler warnings (moc). Use when asked to fix, suppress, or clean up Motoko compiler warnings from `dfx build --check` or `moc --check`.
 
 ## Authoring New Skills
 

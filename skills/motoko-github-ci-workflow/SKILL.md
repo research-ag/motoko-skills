@@ -20,7 +20,7 @@ For general information on GitHub Actions, refer to the [GitHub Actions Document
 
 - `mops` CLI (local: `npm i -g ic-mops`, CI: `caffeinelabs/setup-mops@v1`)
 - `node` (latest LTS recommended, at least v22 for Prettier)
-- `pocket-ic` version `9.0.3` specified in `mops.toml` `[toolchain]` to avoid `dfx` dependency for benchmarks.
+- `pocket-ic` version `9.0.3` specified in `mops.toml` `[toolchain]` (if introduced by the agent; otherwise keep existing version) to avoid `dfx` dependency for benchmarks.
 
 ## How It Works
 
@@ -36,7 +36,7 @@ For general information on GitHub Actions, refer to the [GitHub Actions Document
    - For new projects with canisters/examples, prefer `icp-cli` as it is newer and lighter.
    - For existing projects, maintain the existing toolset (`dfx` or `icp-cli`).
    - **CRITICAL**: Do not install `dfx` and `icp-cli` simultaneously.
-4. **Optimize `mops.toml`**: Ensure `pocket-ic = "9.0.3"` is in the `[toolchain]` section.
+4. **Optimize `mops.toml`**: If `pocket-ic` is missing from the `[toolchain]` section, add `pocket-ic = "9.0.3"`. If it is already present, do NOT change the version. This ensures a fast CI run while respecting project-specific versioning.
 5. **Create or Update Workflow File**: Identify existing workflow files in `.github/workflows/` (e.g., `pull_request_build.yml`, `test.yml`, `ci.yml`). If none exist, create `.github/workflows/ci.yml`. Ensure parallel jobs are used for efficiency.
 6. **Configure Parallel Jobs**:
    - **`test` job**: Handles dependency installation, `mops test`, and `mops bench`.
@@ -47,14 +47,14 @@ For general information on GitHub Actions, refer to the [GitHub Actions Document
 
 ### Step 1 — Optimize `mops.toml`
 
-Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing or not version `9.0.3`, update it:
+Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing, add it with version `9.0.3`. If it is already present, keep the existing version:
 
 ```toml
 [toolchain]
 pocket-ic = "9.0.3"
 ```
 
-*Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. It must be exactly "9.0.3".*
+*Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. Version 9.0.3 is our recommended stable version when introducing the tool; however, if the project already specifies a version, we respect that to avoid breaking changes.*
 
 ### Step 2 — Create or Update the GitHub CI Workflow
 
@@ -88,7 +88,7 @@ jobs:
         uses: caffeinelabs/setup-mops@v1
 
       - name: Make sure moc is installed
-        run: mops toolchain bin moc || mops toolchain use moc latest
+        run: mops toolchain bin moc || (mops toolchain use moc latest && mops toolchain bin moc)
 
       - name: Show versions
         run: |
@@ -204,7 +204,7 @@ If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), ad
 ## Common Pitfalls
 
 1. **Outdated Node version.** Prettier and some Motoko tools require recent Node.js versions. Always use `latest` or at least `v22` in CI.
-2. **Missing or wrong `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, or not version `9.0.3`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow.
+2. **Missing `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow. If missing, always add version `9.0.3`.
 3. **Slow `dfx` installation.** Avoid installing `dfx` unless absolutely necessary (e.g., for E2E tests or Candid comparisons). Use `dfinity/setup-dfx@main` instead of shell scripts.
 4. **Not showing versions.** Always include a step to show `mops` and `moc` versions. This helps in debugging CI issues.
 5. **Not using parallel jobs.** Running formatting and tests in the same job is slower. Use separate jobs so GitHub runs them in parallel.
