@@ -118,9 +118,8 @@ For **every** nested `mops.toml`, ensure:
 - Third-party `[dependencies]` versions **usually** match the root. Examples may occasionally have extra dependencies, but common ones should be in sync.
 - `[toolchain] moc` matches the root, and the version exists in the
   fork used by the CI `setup-mops` action.
-- The package being maintained references itself by a **relative local
-  path** to the directory containing the root `mops.toml` (e.g. `"../"`
-  for `examples/mops.toml`, `"../../"` for deeper nesting). It should also include a comment with the latest version for easy manual replacement by consumers.
+- The package being maintained references itself by its **actual package name** with a **relative local path** to the directory containing the root `mops.toml` (e.g. `self-package-name = "../"` for `examples/mops.toml`). It should also include a comment with the latest version for easy manual replacement by consumers.
+- **Replace relative imports in source code:** Look into the source code of examples and sub-projects (e.g. `examples/**/*.mo`). Identify imports that use relative paths to the root package's source (e.g. `import "../../src/Main"` or `import "../src"`). Replace these with the package name (e.g. `import "mo:self-package-name/Main"` or `import "mo:self-package-name"`). This ensures the examples are ready for copy-pasting by users and work immediately in a new project.
 
 Example `examples/mops.toml`:
 
