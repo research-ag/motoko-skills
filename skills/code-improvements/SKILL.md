@@ -37,7 +37,7 @@ Safety first:
 - G. Use direct string‑to‑Blob assignment for constant ASCII strings where appropriate
 
 3) Verify after each step
-- Build all canisters or packages
+- Build all canisters or packages (use --check flag to save time)
 - Grep/audit with provided commands
 - Keep diffs minimal and readable
 
@@ -687,7 +687,7 @@ Notes
 
 ## Verification & Sign‑off
 
-- Build all canisters successfully after changes.
+- Build all canisters successfully after changes (using --check flag).
 - Run static audits:
     - No `import` lines flagged unused by editor or heuristic scripts (after accounting for dot‑notation needs).
     - Spot check: arrays, maps, sets, text operations use dot‑notation where natural.

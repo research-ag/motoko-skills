@@ -142,11 +142,11 @@ Add a step to the `test` job (or a new job) to build examples. Use the tool alre
             
             # Use icp if it exists, otherwise fallback to dfx if dfx.json is present
             if command -v icp >/dev/null; then
-              icp build --all
+              icp build --all --check
             elif [ -f "dfx.json" ]; then
-              # Only run dfx build if dfx is already installed in this job
+              # Only run dfx build --check if dfx is already installed in this job
               if command -v dfx >/dev/null; then
-                dfx build
+                dfx build --check
               fi
             fi
             cd ..
@@ -174,9 +174,9 @@ Comparing `.did` files often requires `didc` to check the latest interface.
       - name: Build canisters
         run: |
           if command -v icp >/dev/null; then
-            icp build
+            icp build --check
           else
-            dfx build
+            dfx build --check
           fi
 
       - name: Get didc

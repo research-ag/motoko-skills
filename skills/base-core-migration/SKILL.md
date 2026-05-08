@@ -291,7 +291,7 @@ Agent Prompt Template:
 ## Build and Verification Workflow
 
 Per-canister build (fast iteration):
-- dfx build <canister> 2>&1 | head -30
+- dfx build <canister> --check 2>&1 | head -30
 
 Migration completeness (must be zero before Phase 5):
 - grep -rn "mo:base" . --include="*.mo" | grep -v \.mops | wc -l
@@ -385,7 +385,7 @@ VarArray (mutable arrays)
 ## Lessons Learned
 
 1) Read mo:core sources directly when in doubt; public docs may lag.
-2) Build one canister at a time for faster feedback.
+2) Build one canister at a time (using --check) for faster feedback.
 3) “:= void” is the #1 migration error; search for it explicitly.
 4) Third-party packages often require hands-on patches in .mops.
 5) EOP + persistent actor typically removes the need for serialization; still use stable arrays when upgrading across versions with changed structures.
@@ -416,7 +416,7 @@ VarArray (mutable arrays)
 - Convert actor/actor class to persistent actor
 
 6) Build + Audit
-- Per-canister build
+- Per-canister build (using --check)
 - Grep audits for mo:base, Debug.trap, .vals(), and := add calls
 
 7) Fix Third-Party
