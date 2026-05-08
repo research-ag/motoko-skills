@@ -1,7 +1,7 @@
 ---
 name: motoko-github-ci-workflow
 description: "Add a GitHub CI workflow for PRs to a Motoko repository, including mops tests, benchmarks, formatting checks, and building canisters or examples."
-compatibility: "mops >= 0.45.0, node >= 20"
+compatibility: "mops >= 0.45.0, node >= 22"
 metadata:
    title: "Motoko GitHub CI Workflow"
    category: DevOps
