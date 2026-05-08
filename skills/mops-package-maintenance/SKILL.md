@@ -87,14 +87,14 @@ to the latest version.
   mops toolchain update moc
   ```
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
-- `[requirements]`: Update `moc` (and any other items in this section) to the **highest minimum version** required by your dependencies (if it's higher than the current requirement).
-    1. Check the requirements of all upgraded dependencies (usually found in `.mops/<package>@<version>/mops.toml`). You can find all dependency configuration files quickly with:
+- `[requirements]`: Update `moc` (and any other items in this section) to the **highest minimum version** required by your **regular dependencies** (those in the `[dependencies]` section), ignoring `[dev-dependencies]`.
+    1. Check the requirements of all upgraded **regular dependencies** (usually found in `.mops/<package>@<version>/mops.toml`). You can find all dependency configuration files quickly with:
        ```bash
        find .mops -name mops.toml
        ```
-    2. If the highest requirement among dependencies is higher than your current version in `[requirements]`, update yours to match that highest requirement.
+    2. If the highest requirement among **regular dependencies** is higher than your current version in `[requirements]`, update yours to match that highest requirement.
     3. Do NOT automatically bump `[requirements]` to the latest version or align with `[toolchain]`.
-       **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all dependencies.
+       **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all **regular dependencies**. Ignore `moc` requirements from `[dev-dependencies]`.
 
 Then install (this will also download any missing dependencies to `.mops`):
 
@@ -120,15 +120,16 @@ For **every** nested `mops.toml`, ensure:
   fork used by the CI `setup-mops` action.
 - The package being maintained references itself by a **relative local
   path** to the directory containing the root `mops.toml` (e.g. `"../"`
-  for `examples/mops.toml`, `"../../"` for deeper nesting), never by a
-  version string — the new version is not yet published to the registry.
+  for `examples/mops.toml`, `"../../"` for deeper nesting). It should also include a comment with the latest version for easy manual replacement by consumers.
 
 Example `examples/mops.toml`:
 
 ```toml
 [dependencies]
 core = "2.5.0"
-self-package-name = "../"   # local path to self
+self-package-name = "../"
+# Replace with:
+# self-package-name = "0.0.3"
 
 [toolchain]
 moc = "1.6.0"
@@ -210,8 +211,8 @@ upcoming version (you will finalize the version number in Step 10).
 
 Required bullet points:
 
-- **Dependencies bumped** — list every dependency from the `[dependencies]` or `[dev-dependencies]` sections that was upgraded and its old → new version.
-    - **CRITICAL:** Do NOT include `[toolchain] moc` bumps here; users only care about `[requirements]` or actual library dependencies. Even if you upgraded `[toolchain] moc` in Step 3, do NOT list it in the CHANGELOG.
+- **Dependencies bumped** — list every dependency from the `[dependencies]` section that was upgraded and its old → new version.
+    - **CRITICAL:** Do NOT include `[toolchain]` or `[dev-dependencies]` bumps here; users only care about `[requirements]` or actual library dependencies. Even if you upgraded `[toolchain] moc` or a dev-dependency in Step 3, do NOT list it in the CHANGELOG.
 - **Breaking / notable changes** — if any source code had to change to
   accommodate new APIs, describe what changed and why.
 - **Bug fixes** — if any bugs were discovered and fixed during the
@@ -353,7 +354,7 @@ jobs:
 
 ### Step 10 — Bump the version
 
-Open `mops.toml` and increment the **patch** version. For example, if the
+1. Open root `mops.toml` and increment the **patch** version. For example, if the
 current version is `1.2.3`, change it to `1.2.4`.
 
 ```toml
@@ -362,10 +363,19 @@ name = "my-package"
 version = "1.2.4"   # was 1.2.3
 ```
 
-Update the CHANGELOG `[Unreleased]` header to the new version number:
+2. Update the CHANGELOG `[Unreleased]` header to the new version number:
 
 ```markdown
 ## [1.2.4]
+```
+
+3. Update self-dependency comments in all nested `mops.toml` files (identified in Step 3a) to match the new version:
+
+```toml
+# In examples/mops.toml:
+self-package-name = "../"
+# Replace with:
+# self-package-name = "1.2.4"
 ```
 
 ### Step 11 — Commit and push
@@ -398,7 +408,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 1. **Don't blindly bump major versions.** If a dependency from `mops.one` has a new major version number (e.g., `1.x` to `2.x`), you **MUST** read the CHANGELOG of that package. The API likely changed. If the migration is non-trivial, flag it to the user.
 
-2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you **MUST** ensure it is at least the highest version required by any of your dependencies. For example, if your dependencies require `moc >= 1.6.0`, but your `[requirements] moc` is `1.0.0`, you must update it to `1.6.0`. Avoid setting it to the latest `[toolchain] moc` version (e.g., `1.7.0`).
+2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you **MUST** ensure it is at least the highest version required by any of your **regular dependencies** (`[dependencies]` section). For example, if your regular dependencies require `moc >= 1.6.0`, but your `[requirements] moc` is `1.0.0`, you must update it to `1.6.0`. **Ignore `[dev-dependencies]`** when determining the `[requirements]` version; dev-dependencies can use a newer compiler than the package itself requires for consumers.
 
 3. **Lock file drift.** Always run `mops install` after editing
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
@@ -414,7 +424,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 7. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
 
-8. **Including toolchain bumps in CHANGELOG.** Never include `[toolchain] moc` bumps in the CHANGELOG. It clutters the history with internal development details that do not affect the package's consumers. Only include `[requirements] moc` if it was explicitly upgraded.
+8. **Including toolchain or dev-dependency bumps in CHANGELOG.** Never include `[toolchain]` or `[dev-dependencies]` bumps in the CHANGELOG. They clutter the history with internal development details that do not affect the package's consumers. Only include `[requirements]` or `[dependencies]` if they were explicitly upgraded.
 
 ## Verify It Works
 
