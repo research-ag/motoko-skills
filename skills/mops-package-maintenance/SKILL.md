@@ -303,29 +303,46 @@ npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
 **If the `motoko-github-ci-workflow` skill is installed:**
-Follow its instructions to create or update a comprehensive CI workflow (usually `.github/workflows/ci.yml`) that includes tests, benchmarks, and formatting checks. If this comprehensive workflow is implemented, you may skip creating the standalone `prettier.yml` below.
+Follow its instructions to create or update a comprehensive CI workflow (usually `.github/workflows/ci.yml`) that includes tests, benchmarks, and formatting checks.
 
 **If the `motoko-github-ci-workflow` skill is NOT installed:**
-Ensure there is a **separate** GitHub Actions workflow file (e.g., `.github/workflows/prettier.yml`) dedicated to checking code formatting. This keeps the formatting check independent and easy to manage.
+Create or update a consolidated GitHub Actions workflow (usually `.github/workflows/ci.yml`) that includes both code formatting checks and tests.
 
-If it doesn't exist, create `.github/workflows/prettier.yml` with the following content:
+If no CI exists, create `.github/workflows/ci.yml` with the following content:
 
 ```yaml
-name: Prettier Check
+name: CI
 
 on:
   push:
     branches: [main, master]
   pull_request:
-    types: [synchronize, opened, reopened, ready_for_review, unlabeled]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  check:
+  test:
+    name: Tests and Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: latest
+      - uses: caffeinelabs/setup-mops@v1
+      - run: |
+          mops toolchain init
+          mops install
+      - run: mops test   # Omit if no tests exist
+      - run: mops bench  # Omit if no benchmarks exist
 
+  fmt:
+    name: Formatting Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: latest
       - name: Prettier Check
         run: |
           npm install prettier prettier-plugin-motoko --no-save
