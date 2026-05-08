@@ -88,7 +88,7 @@ jobs:
         uses: caffeinelabs/setup-mops@v1
 
       - name: Make sure moc is installed
-        run: mops toolchain bin moc || (mops toolchain use moc latest && mops toolchain bin moc)
+        run: mops toolchain init && mops toolchain bin moc
 
       - name: Show versions
         run: |
@@ -97,6 +97,9 @@ jobs:
 
       - name: Install dependencies
         run: mops install
+
+      - name: Make sure pocket-ic is installed
+        run: mops toolchain init && mops toolchain bin pocket-ic  # Omit this step if the package has no benchmarks
 
       - name: Run tests
         run: mops test  # Omit this step if the package has no tests
