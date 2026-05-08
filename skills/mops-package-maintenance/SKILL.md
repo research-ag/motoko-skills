@@ -10,8 +10,8 @@ description: Automate maintaining a Motoko mops package — upgrade dependencies
 A step-by-step playbook for an AI agent to fully maintain a Motoko package
 published on [MOPS](https://mops.one). The workflow upgrades all
 dependencies, validates the package still works, polishes documentation,
-formats the code, and prepares a versioned release branch — all in one
-automated pass.
+formats the code, ensures a robust CI workflow, and prepares a versioned
+release branch — all in one automated pass.
 
 ## When to Use
 
@@ -55,7 +55,7 @@ All subsequent changes are committed on this branch.
     - **Documentation < 95%**: You MUST run the `motoko-doc-strings` skill to improve doc-string coverage.
     - **Documentation >= 95%**: Skip documentation improvements. Do NOT run the `motoko-doc-strings` skill, and skip Step 7 and Step 8.
     - **Missing License/Repository**: Ensure these fields are correctly set in `mops.toml` `[package]` section.
-    - **Tests/Benchmarks failing**: These will be addressed in Step 4 and Step 5.
+    - **Tests/Benchmarks failing/missing**: These will be addressed in Step 4 and Step 5. You MUST also ensure a proper CI workflow is in place by following Step 9c (especially if the `motoko-github-ci-workflow` skill is installed).
 7. If a quality issue cannot be fixed automatically, raise a warning to the user.
 
 ### Step 2 — Discover outdated dependencies
@@ -298,10 +298,14 @@ Run Prettier to format all supported files:
 npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 ```
 
-#### 9c — Verify or Add Prettier Check to CI
+#### 9c — Verify or Add CI Workflow
 
 Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 
+**If the `motoko-github-ci-workflow` skill is installed:**
+Follow its instructions to create or update a comprehensive CI workflow (usually `.github/workflows/ci.yml`) that includes tests, benchmarks, and formatting checks. If this comprehensive workflow is implemented, you may skip creating the standalone `prettier.yml` below.
+
+**If the `motoko-github-ci-workflow` skill is NOT installed:**
 Ensure there is a **separate** GitHub Actions workflow file (e.g., `.github/workflows/prettier.yml`) dedicated to checking code formatting. This keeps the formatting check independent and easy to manage.
 
 If it doesn't exist, create `.github/workflows/prettier.yml` with the following content:
