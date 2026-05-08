@@ -137,11 +137,22 @@ moc = "1.6.0"
 
 #### Step 3b — Audit repo hygiene files
 
-- `.gitignore`: Ignore `node_modules/`, build artifacts, IDE directories (e.g. `.idea/`, `.vscode/`),
-  agent-specific directories (e.g. `.agents/`, `.junie/`, `.claude/`, `.copilot/`),
-  and `skills-lock.json`.
-- `package-lock.json`: If it does NOT exist, do NOT introduce it.
-- `package.json`: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
+- **`.gitignore`**: If it does NOT exist, create it. Ensure it contains the following recommended entries. If it exists, add any missing entries:
+  ```text
+  .mops/
+  node_modules/
+  .dfx/
+  build/
+  .idea/
+  .vscode/
+  .agents/
+  .junie/
+  .claude/
+  .copilot/
+  skills-lock.json
+  ```
+- **`package-lock.json`**: If it does NOT exist, do NOT introduce it.
+- **`package.json`**: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
 
 ### Step 3c — Fix compiler warnings
 
@@ -414,8 +425,9 @@ Ready for review. Run `git push -u origin HEAD` to push.
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
    lock file.
 
-4. **Missing `node_modules` in `.gitignore`.** After running `npm install`,
-   make sure `node_modules/` is listed in `.gitignore`. Add it if missing.
+4. **Missing recommended entries in `.gitignore`.** Always ensure that
+   `.gitignore` is present and contains the recommended entries (see Step 3b),
+   especially `node_modules/` and `.mops/`.
 
 5. **CHANGELOG ordering.** Newest version goes at the top. Don't append
    to the bottom.
