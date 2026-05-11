@@ -277,7 +277,7 @@ Read `README.md` and every other `.md` file in the repository. For each:
 3. Improve clarity, grammar, and completeness where possible.
 4. Add any new sections that would help users (e.g., new API surface
    from upgraded deps).
-5. **Format Instruction:** Ensure `README.md` contains instructions on how to format the code (e.g., `npx -y prettier --write '**/*.{mo,json,md}'`). Add it to a "Development" or "Formatting" section if missing.
+5. **Format Instruction:** Ensure `README.md` contains instructions on how to format the code (e.g., `npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'`). Add it to a "Development" or "Formatting" section if missing.
 
 ### Step 9 — Formatting
 
@@ -309,7 +309,7 @@ Recommended `.prettierrc`:
 Run Prettier to format all supported files:
 
 ```bash
-npx -y prettier --write '**/*.{mo,json,md}'
+npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
 ```
 
 #### 9c — Verify or Add CI Workflow
@@ -360,7 +360,7 @@ jobs:
       - name: Prettier Check
         run: |
           npm install prettier prettier-plugin-motoko --no-save
-          npx -y prettier --write '**/*.{mo,json,md}'
+          npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.

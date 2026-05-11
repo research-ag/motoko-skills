@@ -124,7 +124,7 @@ jobs:
       - name: Prettier Check
         run: |
           npm install prettier prettier-plugin-motoko --no-save
-          npx -y prettier --write '**/*.{mo,json,md}'
+          npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
 ```
 
 ### Step 3 — Handle Examples and Canisters (Optional)
