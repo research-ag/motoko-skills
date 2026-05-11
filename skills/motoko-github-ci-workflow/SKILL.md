@@ -56,6 +56,8 @@ pocket-ic = "9.0.3"
 
 *Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. Version 9.0.3 is our recommended stable version when introducing the tool; however, if the project already specifies a version, we respect that to avoid breaking changes.*
 
+Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, ensure it includes `mops.toml` and `dfx.json` (if used), including those in sub-directories like `examples/` (e.g., by using `**/mops.toml` and `**/dfx.json`). This ensures that these important configuration files are included in the published package.
+
 ### Step 2 — Create or Update the GitHub CI Workflow
 
 Identify existing workflow files in `.github/workflows/`. If one exists, update it. Otherwise, create `.github/workflows/ci.yml`. Use the latest versions of actions (e.g., `actions/checkout@v6`, `actions/setup-node@v6`) and parallelize the tasks.
@@ -122,7 +124,7 @@ jobs:
       - name: Prettier Check
         run: |
           npm install prettier prettier-plugin-motoko --no-save
-          npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
+          npx -y prettier --write '**/*.{mo,json,md}'
 ```
 
 ### Step 3 — Handle Examples and Canisters (Optional)

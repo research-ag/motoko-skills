@@ -152,6 +152,9 @@ moc = "1.6.0"
   ```
 - **`package-lock.json`**: If it does NOT exist, do NOT introduce it.
 - **`package.json`**: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
+- **`mops.toml` `files` field**: If `mops.toml` contains a `files` field under `[package]`, it acts as an allow-list. Ensure it includes `mops.toml` and `dfx.json` (if used). This should cover both the root files and any files in sub-directories like `examples/`.
+    - **Check**: If `files` is present, ensure it includes masks like `**/mops.toml` and `**/dfx.json` (if `dfx` is used in the project or examples).
+    - **Example**: `files = [ "**/*.mo", "**/*.did", "**/*.md", "**/mops.toml", "**/dfx.json" ]`
 
 ### Step 3c — Fix compiler warnings
 
@@ -234,7 +237,7 @@ create one with this format:
 ```markdown
 # Changelog
 
-## [Unreleased]
+## Unreleased
 
 ### Changed
 
@@ -274,7 +277,7 @@ Read `README.md` and every other `.md` file in the repository. For each:
 3. Improve clarity, grammar, and completeness where possible.
 4. Add any new sections that would help users (e.g., new API surface
    from upgraded deps).
-5. **Format Instruction:** Ensure `README.md` contains instructions on how to format the code (e.g., `npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'`). Add it to a "Development" or "Formatting" section if missing.
+5. **Format Instruction:** Ensure `README.md` contains instructions on how to format the code (e.g., `npx -y prettier --write '**/*.{mo,json,md}'`). Add it to a "Development" or "Formatting" section if missing.
 
 ### Step 9 — Formatting
 
@@ -306,7 +309,7 @@ Recommended `.prettierrc`:
 Run Prettier to format all supported files:
 
 ```bash
-npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
+npx -y prettier --write '**/*.{mo,json,md}'
 ```
 
 #### 9c — Verify or Add CI Workflow
@@ -357,7 +360,7 @@ jobs:
       - name: Prettier Check
         run: |
           npm install prettier prettier-plugin-motoko --no-save
-          npx -y prettier --plugin prettier-plugin-motoko --check '**/*.{mo,json,md}'
+          npx -y prettier --write '**/*.{mo,json,md}'
 ```
 
 **CRITICAL:** Do NOT add a "Compiler Check" or `moc --check` step to the CI. While the agent MUST run this check locally during maintenance (Step 3c), it should NOT be part of the automated CI suite.
@@ -373,10 +376,10 @@ name = "my-package"
 version = "1.2.4"   # was 1.2.3
 ```
 
-2. Update the CHANGELOG `[Unreleased]` header to the new version number:
+2. Update the CHANGELOG `Unreleased` header to the new version number:
 
 ```markdown
-## [1.2.4]
+## 1.2.4
 ```
 
 3. Update self-dependency comments in all nested `mops.toml` files (identified in Step 3a) to match the new version:
