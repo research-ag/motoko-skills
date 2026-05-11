@@ -56,7 +56,7 @@ pocket-ic = "9.0.3"
 
 *Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. Version 9.0.3 is our recommended stable version when introducing the tool; however, if the project already specifies a version, we respect that to avoid breaking changes.*
 
-Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, ensure it includes `mops.toml` and `dfx.json` (if used), including those in sub-directories like `examples/` (e.g., by using `**/mops.toml` and `**/dfx.json`). This ensures that these important configuration files are included in the published package.
+Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, and an examples directory exists (usually named `examples/` or `example/`) with its own `mops.toml` or `dfx.json`, ensure these are included in the `files` field (e.g., by using `examples/**/mops.toml` and `examples/**/dfx.json` or `example/**/mops.toml`). Do not blindly add these masks for all directories as they are usually not needed.
 
 ### Step 2 — Create or Update the GitHub CI Workflow
 
@@ -129,15 +129,22 @@ jobs:
 
 ### Step 3 — Handle Examples and Canisters (Optional)
 
-#### If the repo has examples that are canisters:
+#### If the repo has examples (or example) that are canisters:
 Add a step to the `test` job (or a new job) to build examples. Use the tool already present in the project or `icp-cli` for new ones. Omit this section if no examples/canisters need building.
 
 ```yaml
       - name: Build examples
         run: |
-          # Detect and build examples
+          # Detect and build examples/example
+          EXAMPLES_DIR=""
           if [ -d "examples" ]; then
-            cd examples
+            EXAMPLES_DIR="examples"
+          elif [ -d "example" ]; then
+            EXAMPLES_DIR="example"
+          fi
+
+          if [ -n "$EXAMPLES_DIR" ]; then
+            cd "$EXAMPLES_DIR"
             if [ -f "mops.toml" ]; then
               mops install
             fi

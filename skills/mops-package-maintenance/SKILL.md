@@ -104,10 +104,10 @@ mops install
 
 Verify the lock file updated cleanly and there are no resolution errors. **IMPORTANT:** Check the command output for any warnings like `moc version does not meet the requirements of <package>`. If found, you MUST upgrade both `[toolchain] moc` and `[requirements] moc` to at least the required version.
 
-#### Step 3a — Sync nested `mops.toml` files (examples, sub-projects)
+#### Step 3a — Sync nested `mops.toml` files (examples/example, sub-projects)
 
 Search the repository for any additional `mops.toml` files outside the
-root (commonly under `examples/`, `bench/`, or sub-canister folders):
+root (commonly under `examples/`, `example/`, `bench/`, or sub-canister folders):
 
 ```bash
 find . -name mops.toml -not -path "./node_modules/*" -not -path "./.mops/*"
@@ -118,10 +118,10 @@ For **every** nested `mops.toml`, ensure:
 - Third-party `[dependencies]` versions **usually** match the root. Examples may occasionally have extra dependencies, but common ones should be in sync.
 - `[toolchain] moc` matches the root, and the version exists in the
   fork used by the CI `setup-mops` action.
-- The package being maintained references itself by its **actual package name** with a **relative local path** to the directory containing the root `mops.toml` (e.g. `self-package-name = "../"` for `examples/mops.toml`). It should also include a comment with the latest version for easy manual replacement by consumers.
-- **Replace relative imports in source code:** Look into the source code of examples and sub-projects (e.g. `examples/**/*.mo`). Identify imports that use relative paths to the root package's source (e.g. `import "../../src/Main"` or `import "../src"`). Replace these with the package name (e.g. `import "mo:self-package-name/Main"` or `import "mo:self-package-name"`). This ensures the examples are ready for copy-pasting by users and work immediately in a new project.
+- The package being maintained references itself by its **actual package name** with a **relative local path** to the directory containing the root `mops.toml` (e.g. `self-package-name = "../"` for `examples/mops.toml` or `example/mops.toml`). It should also include a comment with the latest version for easy manual replacement by consumers.
+- **Replace relative imports in source code:** Look into the source code of examples and sub-projects (e.g. `examples/**/*.mo` or `example/**/*.mo`). Identify imports that use relative paths to the root package's source (e.g. `import "../../src/Main"` or `import "../src"`). Replace these with the package name (e.g. `import "mo:self-package-name/Main"` or `import "mo:self-package-name"`). This ensures the examples are ready for copy-pasting by users and work immediately in a new project.
 
-Example `examples/mops.toml`:
+Example `examples/mops.toml` (or `example/mops.toml`):
 
 ```toml
 [dependencies]
@@ -152,9 +152,9 @@ moc = "1.6.0"
   ```
 - **`package-lock.json`**: If it does NOT exist, do NOT introduce it.
 - **`package.json`**: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
-- **`mops.toml` `files` field**: If `mops.toml` contains a `files` field under `[package]`, it acts as an allow-list. Ensure it includes `mops.toml` and `dfx.json` (if used). This should cover both the root files and any files in sub-directories like `examples/`.
-    - **Check**: If `files` is present, ensure it includes masks like `**/mops.toml` and `**/dfx.json` (if `dfx` is used in the project or examples).
-    - **Example**: `files = [ "**/*.mo", "**/*.did", "**/*.md", "**/mops.toml", "**/dfx.json" ]`
+- **`mops.toml` `files` field**: If `mops.toml` contains a `files` field under `[package]`, it acts as an allow-list. If an examples directory exists (usually named `examples/` or `example/`) and contains `mops.toml` or `dfx.json`, ensure these are included in the `files` list.
+    - **Check**: If `files` is present and an `examples/` or `example/` directory exists, ensure it includes masks like `examples/**/mops.toml` and `examples/**/dfx.json` (or `example/**/mops.toml` etc. depending on the actual directory name). Avoid adding these masks for other directories as they are usually not needed.
+    - **Example**: `files = [ "**/*.mo", "**/*.did", "**/*.md", "examples/**/mops.toml", "examples/**/dfx.json" ]` (use `example/` if that is the directory name).
 
 ### Step 3c — Fix compiler warnings
 
@@ -385,7 +385,7 @@ version = "1.2.4"   # was 1.2.3
 3. Update self-dependency comments in all nested `mops.toml` files (identified in Step 3a) to match the new version:
 
 ```toml
-# In examples/mops.toml:
+# In examples/mops.toml (or example/mops.toml):
 self-package-name = "../"
 # Replace with:
 # self-package-name = "1.2.4"
