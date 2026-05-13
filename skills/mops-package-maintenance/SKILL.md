@@ -142,6 +142,8 @@ moc = "1.6.0"
   .icp/
   mops.lock
   node_modules/
+  package.json
+  package-lock.json
   .dfx/
   build/
   skills-lock.json
@@ -428,7 +430,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 4. **Missing recommended entries in `.gitignore`.** Always ensure that
    `.gitignore` is present and contains the recommended entries (see Step 3b),
-   especially `node_modules/`, `.mops/`, `.icp/`, and `mops.lock`.
+   especially `node_modules/`, `package.json`, `package-lock.json`, `.mops/`, `.icp/`, and `mops.lock`.
 
 5. **Mismanaging the `mops.toml` `files` field.** Never attempt to automatically modify the `files` field in `mops.toml`. Report its contents to the user and warn about missing patterns or unsupported extensions (`.mo`, `.did`, `.md`, `.toml` only).
 
