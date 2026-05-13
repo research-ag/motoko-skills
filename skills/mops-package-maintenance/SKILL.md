@@ -90,11 +90,12 @@ to the latest version.
 - `[requirements]`: Determine the minimum `moc` version required for the package to function correctly.
     1. **Initial version:**
        - Identify the maximum `moc` version required by all **regular dependencies** (those in `[dependencies]`), EXCLUDING the `core` package.
-       - Use the following command to find the `mops.toml` files of these dependencies:
-         ```bash
-         find .mops -name mops.toml -not -path "*/core@*/*"
-         ```
-       - Your **Initial version** is the highest `moc` version found in the `[requirements]` sections of these files.
+       - To do this:
+         1. Take exactly the dependencies from your root `mops.toml` `[dependencies]` section (excluding `core`).
+         2. Parse each dependency name and version.
+         3. Look at exactly the file `.mops/<name>@<version>/mops.toml`.
+         4. Extract the `moc` version from the `[requirements]` section (skip if no such section).
+         5. Take the maximum over all of them. This is your **Initial version**.
        - If this calculated version is lower than the `moc` version currently set in your root `mops.toml` `[requirements]` section, use your current version instead.
     2. **Check `core` requirement:** Identify the exact version of the `core` package from the `[dependencies]` section of your root `mops.toml`. After running `mops install`, look at the `moc` version in the `[requirements]` section of `.mops/core@<version>/mops.toml` (where `<version>` is the exact version of core under [dependency] section in our main mops.toml).
     3. **Iterative Validation (if `core` requirement is higher):**
@@ -128,7 +129,7 @@ Then install (this will also download any missing dependencies to `.mops`):
 mops install
 ```
 
-Verify the lock file updated cleanly and there are no resolution errors. **Note:** You might see warnings like `moc version does not meet the requirements of <package>`. If you successfully verified a lower version in Step 3, you may ignore these warnings to maintain broader compatibility. However, if you encounter actual compilation errors, you MUST upgrade both `[toolchain] moc` and `[requirements] moc` to at least the required version.
+Verify the lock file updated cleanly and there are no resolution errors.
 
 #### Step 3a — Sync nested `mops.toml` files (examples/example, sub-projects)
 
@@ -448,7 +449,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 1. **Don't blindly bump major versions.** If a dependency from `mops.one` has a new major version number (e.g., `1.x` to `2.x`), you **MUST** read the CHANGELOG of that package. The API likely changed. If the migration is non-trivial, flag it to the user.
 
-2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you must ensure it is at least the highest version required by any of your **regular dependencies** (EXCLUDING `core`). Use `find .mops -name mops.toml -not -path "*/core@*/*"` to audit these. For the `core` package specifically, you should test the package against a range of `moc` versions (from your initial calculated version up to the requirement found in `.mops/core@<version>/mops.toml`) to find the **minimum** version that works. If the package passes all checks with a version lower than what `core` requires, prefer the lower version to maximize compatibility for consumers. Revert and warn if no working version is found within the expected range.
+2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you must ensure it is at least the highest version required by any of your **regular dependencies** (EXCLUDING `core`). Audit these by looking at exactly the `.mops/<name>@<version>/mops.toml` file for each dependency in your `[dependencies]` section. For the `core` package specifically, you should test the package against a range of `moc` versions (from your initial calculated version up to the requirement found in `.mops/core@<version>/mops.toml`) to find the **minimum** version that works. If the package passes all checks with a version lower than what `core` requires, prefer the lower version to maximize compatibility for consumers. Revert and warn if no working version is found within the expected range.
 
 3. **Lock file drift.** Always run `mops install` after editing
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
