@@ -139,22 +139,21 @@ moc = "1.6.0"
 - **`.gitignore`**: If it does NOT exist, create it. Ensure it contains the following recommended entries. If it exists, add any missing entries:
   ```text
   .mops/
+  .icp/
+  mops.lock
   node_modules/
   .dfx/
   build/
-  .idea/
-  .vscode/
-  .agents/
-  .junie/
-  .claude/
-  .copilot/
   skills-lock.json
+  .agents
   ```
+  *(Note: Personal files like `.idea`, `.vscode`, `.claude`, `.junie`, `.copilot`, `.tmp`, `*.swp`, and `.DS_Store` should NOT be added here; they should be managed in the developer's global ignore file, e.g., `~/.gitignore_global`.)*
 - **`package-lock.json`**: If it does NOT exist, do NOT introduce it.
 - **`package.json`**: If it exists, ensure the `license` field matches `mops.toml` `[package] license`. If it does NOT exist, do NOT introduce it (it may be created by `npm`, if so, do NOT commit it).
-- **`mops.toml` `files` field**: If `mops.toml` contains a `files` field under `[package]`, it acts as an allow-list. If an examples directory exists (usually named `examples/` or `example/`) and contains `mops.toml` or `dfx.json`, ensure these are included in the `files` list.
-    - **Check**: If `files` is present and an `examples/` or `example/` directory exists, ensure it includes masks like `examples/**/mops.toml` and `examples/**/dfx.json` (or `example/**/mops.toml` etc. depending on the actual directory name). Avoid adding these masks for other directories as they are usually not needed.
-    - **Example**: `files = [ "**/*.mo", "**/*.did", "**/*.md", "examples/**/mops.toml", "examples/**/dfx.json" ]` (use `example/` if that is the directory name).
+- **`mops.toml` `files` field**: If `mops.toml` contains a `files` field under `[package]`, it acts as an allow-list for the `mops publish` command.
+    - **CRITICAL:** Do NOT modify the `files` field. Leave it exactly as it is. Trying to be smart about it can lead to including unintended files (like tests or benchmarks) or excluding necessary ones. Let the user edit this line manually if needed.
+    - **Check & Report:** Report to the user which files/patterns are currently included in the `files` field. Warn the user if something looks off (e.g., if an `examples/` directory exists but is NOT included).
+    - **Allowed Extensions:** Note that `mops publish` only supports the following extensions: `.mo`, `.did`, `.md`, `.toml`. If the `files` field includes other extensions (e.g., `.json`), warn the user that they might cause errors during publish.
 
 ### Step 3c — Fix compiler warnings
 
@@ -396,11 +395,11 @@ self-package-name = "../"
 Stage all changes. **CRITICAL:** If `package.json` or `package-lock.json` did not exist at the start of the task, do NOT commit them if they were created during the process (e.g., by `npm install`).
 
 ```bash
-git add -A
-git restore --staged .idea .vscode .agents .junie .claude .copilot skills-lock.json
-# Do not commit package.json if it was just created
-git status --porcelain | grep "^A  package.json" && git restore --staged package.json || true
-git status --porcelain | grep "^A  package-lock.json" && git restore --staged package-lock.json || true
+# Stage all changes to tracked files (including deletions)
+git add -u
+# Stage intentional new files created by the maintenance task
+git add .gitignore CHANGELOG.md .prettierrc .github/workflows/*.yml 2>/dev/null || true
+# Verify staged changes
 git status
 ```
 
@@ -429,16 +428,18 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 4. **Missing recommended entries in `.gitignore`.** Always ensure that
    `.gitignore` is present and contains the recommended entries (see Step 3b),
-   especially `node_modules/` and `.mops/`.
+   especially `node_modules/`, `.mops/`, `.icp/`, and `mops.lock`.
 
-5. **CHANGELOG ordering.** Newest version goes at the top. Don't append
+5. **Mismanaging the `mops.toml` `files` field.** Never attempt to automatically modify the `files` field in `mops.toml`. Report its contents to the user and warn about missing patterns or unsupported extensions (`.mo`, `.did`, `.md`, `.toml` only).
+
+6. **CHANGELOG ordering.** Newest version goes at the top. Don't append
    to the bottom.
 
-6. **Respect the documentation quality threshold.** If the MOPS documentation quality is >= 95%, do NOT perform a full doc-string review or README update. This avoids unnecessary noise and minor changes that don't significantly improve the package quality when it's already at a high standard. Only perform a full scan if quality is < 95% or if the package is not yet published.
+7. **Respect the documentation quality threshold.** If the MOPS documentation quality is >= 95%, do NOT perform a full doc-string review or README update. This avoids unnecessary noise and minor changes that don't significantly improve the package quality when it's already at a high standard. Only perform a full scan if quality is < 95% or if the package is not yet published.
 
-7. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
+8. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
 
-8. **Including toolchain or dev-dependency bumps in CHANGELOG.** Never include `[toolchain]` or `[dev-dependencies]` bumps in the CHANGELOG. They clutter the history with internal development details that do not affect the package's consumers. Only include `[requirements]` or `[dependencies]` if they were explicitly upgraded.
+9. **Including toolchain or dev-dependency bumps in CHANGELOG.** Never include `[toolchain]` or `[dev-dependencies]` bumps in the CHANGELOG. They clutter the history with internal development details that do not affect the package's consumers. Only include `[requirements]` or `[dependencies]` if they were explicitly upgraded.
 
 ## Verify It Works
 

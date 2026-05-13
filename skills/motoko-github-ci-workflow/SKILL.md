@@ -56,7 +56,7 @@ pocket-ic = "9.0.3"
 
 *Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. Version 9.0.3 is our recommended stable version when introducing the tool; however, if the project already specifies a version, we respect that to avoid breaking changes.*
 
-Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, and an examples directory exists (usually named `examples/` or `example/`) with its own `mops.toml` or `dfx.json`, ensure these are included in the `files` field (e.g., by using `examples/**/mops.toml` and `examples/**/dfx.json` or `example/**/mops.toml`). Do not blindly add these masks for all directories as they are usually not needed.
+Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, do NOT modify it. Trying to be smart about the `files` field can lead to unintended side effects. Instead, report its current configuration to the user and warn them if it seems to be missing important directories (like `examples/`) or if it includes unsupported extensions (only `.mo`, `.did`, `.md`, and `.toml` are allowed for `mops publish`).
 
 ### Step 2 — Create or Update the GitHub CI Workflow
 
