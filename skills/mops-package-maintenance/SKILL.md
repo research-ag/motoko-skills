@@ -103,11 +103,9 @@ to the latest version.
        - Identify all intermediate `moc` versions from your initial version to the `core`'s required version (inclusive).
        - For each version `X` in this range (starting from the lowest):
          1. Temporarily set `[toolchain] moc = "X"` in `mops.toml`.
-         2. Run: `mops toolchain init`
-         3. Run: `mops install`
-         4. Run: `mops test` (if tests exist).
-         5. Run: `mops bench` (if benchmarks exist).
-         6. Build examples (if they exist). To build examples:
+         2. Run: `mops test` (if tests exist).
+         3. Run: `mops bench` (if benchmarks exist).
+         4. Build examples (if they exist). Build **Motoko canisters only** (ignore asset or Rust canisters). To build examples:
             ```bash
             # Detect and build examples/example
             EXAMPLES_DIR=""
@@ -115,11 +113,12 @@ to the latest version.
             if [ -n "$EXAMPLES_DIR" ]; then
               cd "$EXAMPLES_DIR"
               mops install
-              if command -v icp >/dev/null; then icp build --all; elif [ -f "dfx.json" ]; then dfx build; fi
+              # Build Motoko canisters only
+              if [ -f "icp.yaml" ] && command -v icp >/dev/null; then icp build --all; elif [ -f "dfx.json" ]; then dfx build; fi
               cd ..
             fi
             ```
-         7. If ALL steps pass without errors, set `[requirements] moc = "X"` in `mops.toml` and STOP. This is your new requirement.
+         5. If ALL steps pass without errors, set `[requirements] moc = "X"` in `mops.toml` and STOP. This is your new requirement.
     4. **Failure Handling:** If something fails even on the highest version (the one required by `core`), revert `[requirements] moc` to your initial version and print a warning to the user that you failed to find a `moc` version that fits.
     5. **Final sync:** Ensure `[toolchain] moc` is set back to the latest version after finding the requirement.
 
@@ -129,7 +128,7 @@ Then install (this will also download any missing dependencies to `.mops`):
 mops install
 ```
 
-Verify the lock file updated cleanly and there are no resolution errors.
+Verify that `mops install` completed successfully without resolution errors (e.g., version conflicts or missing packages) and that `mops.lock` was updated correctly to reflect the changes.
 
 #### Step 3a — Sync nested `mops.toml` files (examples/example, sub-projects)
 
@@ -190,7 +189,7 @@ Run the `fix-compiler-warnings` skill as a sub-task.
 
 **CRITICAL RULE:** Do NOT modify any code unless an explicit warning or error was produced by the compiler. Never apply "improvements" or "fixes" for perceived issues that the compiler does not actually complain about.
 
-1. Run the build check to capture warnings. Choose the command based on the project type:
+1. Run the build check to capture warnings for **Motoko canisters** (ignore asset or Rust canisters). Choose the command based on the project type:
 
    #### For DFX projects:
    ```bash
@@ -204,7 +203,7 @@ Run the `fix-compiler-warnings` skill as a sub-task.
 
    #### For ICP-CLI projects:
    ```bash
-   icp build --check 2>&1 | tee /tmp/icp_build_output.txt
+   icp build 2>&1 | tee /tmp/icp_build_output.txt
    ```
 
 2. If warnings/errors are found:

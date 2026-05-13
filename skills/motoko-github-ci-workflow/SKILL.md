@@ -150,7 +150,7 @@ Add a step to the `test` job (or a new job) to build examples. Use the tool alre
             fi
             
             # Use icp if it exists, otherwise fallback to dfx if dfx.json is present
-            if command -v icp >/dev/null; then
+            if [ -f "icp.yaml" ] && command -v icp >/dev/null; then
               icp build --all
             elif [ -f "dfx.json" ]; then
               # Only run dfx build if dfx is already installed in this job
@@ -182,7 +182,7 @@ Comparing `.did` files often requires `didc` to check the latest interface.
 ```yaml
       - name: Build canisters
         run: |
-          if command -v icp >/dev/null; then
+          if [ -f "icp.yaml" ] && command -v icp >/dev/null; then
             icp build
           else
             dfx build
