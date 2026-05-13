@@ -87,14 +87,40 @@ to the latest version.
   mops toolchain update moc
   ```
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
-- `[requirements]`: Update `moc` (and any other items in this section) to the **highest minimum version** required by your **regular dependencies** (those in the `[dependencies]` section), ignoring `[dev-dependencies]`.
-    1. Check the requirements of all upgraded **regular dependencies** (usually found in `.mops/<package>@<version>/mops.toml`). You can find all dependency configuration files quickly with:
-       ```bash
-       find .mops -name mops.toml
-       ```
-    2. If the highest requirement among **regular dependencies** is higher than your current version in `[requirements]`, update yours to match that highest requirement.
-    3. Do NOT automatically bump `[requirements]` to the latest version or align with `[toolchain]`.
-       **Note:** At a minimum, `[requirements] moc` MUST be >= the highest `moc` requirement of all **regular dependencies**. Ignore `moc` requirements from `[dev-dependencies]`.
+- `[requirements]`: Determine the minimum `moc` version required for the package to function correctly.
+    1. **Initial version:**
+       - Identify the maximum `moc` version required by all **regular dependencies** (those in `[dependencies]`), EXCLUDING the `core` package.
+       - Use the following command to find the `mops.toml` files of these dependencies:
+         ```bash
+         find .mops -name mops.toml -not -path "*/core@*/*"
+         ```
+       - Your **Initial version** is the highest `moc` version found in the `[requirements]` sections of these files.
+       - If this calculated version is lower than the `moc` version currently set in your root `mops.toml` `[requirements]` section, use your current version instead.
+    2. **Check `core` requirement:** Identify the exact version of the `core` package from the `[dependencies]` section of your root `mops.toml`. After running `mops install`, look at the `moc` version in the `[requirements]` section of `.mops/core@<version>/mops.toml` (where `<version>` is the exact version of core under [dependency] section in our main mops.toml).
+    3. **Iterative Validation (if `core` requirement is higher):**
+       If the `core`'s `moc` requirement is greater than your initial version, you MUST find the minimum version between them that works.
+       - Identify all intermediate `moc` versions from your initial version to the `core`'s required version (inclusive).
+       - For each version `X` in this range (starting from the lowest):
+         1. Temporarily set `[toolchain] moc = "X"` in `mops.toml`.
+         2. Run: `mops toolchain init`
+         3. Run: `mops install`
+         4. Run: `mops test` (if tests exist).
+         5. Run: `mops bench` (if benchmarks exist).
+         6. Build examples (if they exist). To build examples:
+            ```bash
+            # Detect and build examples/example
+            EXAMPLES_DIR=""
+            if [ -d "examples" ]; then EXAMPLES_DIR="examples"; elif [ -d "example" ]; then EXAMPLES_DIR="example"; fi
+            if [ -n "$EXAMPLES_DIR" ]; then
+              cd "$EXAMPLES_DIR"
+              mops install
+              if command -v icp >/dev/null; then icp build --all; elif [ -f "dfx.json" ]; then dfx build; fi
+              cd ..
+            fi
+            ```
+         7. If ALL steps pass without errors, set `[requirements] moc = "X"` in `mops.toml` and STOP. This is your new requirement.
+    4. **Failure Handling:** If something fails even on the highest version (the one required by `core`), revert `[requirements] moc` to your initial version and print a warning to the user that you failed to find a `moc` version that fits.
+    5. **Final sync:** Ensure `[toolchain] moc` is set back to the latest version after finding the requirement.
 
 Then install (this will also download any missing dependencies to `.mops`):
 
@@ -102,7 +128,7 @@ Then install (this will also download any missing dependencies to `.mops`):
 mops install
 ```
 
-Verify the lock file updated cleanly and there are no resolution errors. **IMPORTANT:** Check the command output for any warnings like `moc version does not meet the requirements of <package>`. If found, you MUST upgrade both `[toolchain] moc` and `[requirements] moc` to at least the required version.
+Verify the lock file updated cleanly and there are no resolution errors. **Note:** You might see warnings like `moc version does not meet the requirements of <package>`. If you successfully verified a lower version in Step 3, you may ignore these warnings to maintain broader compatibility. However, if you encounter actual compilation errors, you MUST upgrade both `[toolchain] moc` and `[requirements] moc` to at least the required version.
 
 #### Step 3a — Sync nested `mops.toml` files (examples/example, sub-projects)
 
@@ -422,7 +448,7 @@ Ready for review. Run `git push -u origin HEAD` to push.
 
 1. **Don't blindly bump major versions.** If a dependency from `mops.one` has a new major version number (e.g., `1.x` to `2.x`), you **MUST** read the CHANGELOG of that package. The API likely changed. If the migration is non-trivial, flag it to the user.
 
-2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you **MUST** ensure it is at least the highest version required by any of your **regular dependencies** (`[dependencies]` section). For example, if your regular dependencies require `moc >= 1.6.0`, but your `[requirements] moc` is `1.0.0`, you must update it to `1.6.0`. **Ignore `[dev-dependencies]`** when determining the `[requirements]` version; dev-dependencies can use a newer compiler than the package itself requires for consumers.
+2. **`[requirements] moc` version.** While you shouldn't *blindly* bump it to the latest version, you must ensure it is at least the highest version required by any of your **regular dependencies** (EXCLUDING `core`). Use `find .mops -name mops.toml -not -path "*/core@*/*"` to audit these. For the `core` package specifically, you should test the package against a range of `moc` versions (from your initial calculated version up to the requirement found in `.mops/core@<version>/mops.toml`) to find the **minimum** version that works. If the package passes all checks with a version lower than what `core` requires, prefer the lower version to maximize compatibility for consumers. Revert and warn if no working version is found within the expected range.
 
 3. **Lock file drift.** Always run `mops install` after editing
    `mops.toml` so the lock file stays in sync. Never commit a hand-edited
