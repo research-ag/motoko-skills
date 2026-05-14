@@ -89,14 +89,14 @@ to the latest version.
 - `[toolchain] moc`: Upgrade this to the latest version. (Note: This is for development only and should NOT be listed in the CHANGELOG).
 - `[requirements]`: Determine the minimum `moc` version required for the package to function correctly.
     1. **Initial version:**
-       - Identify the maximum `moc` version required by all **regular dependencies** (those in `[dependencies]`), EXCLUDING the `core` package.
-       - To do this:
-         1. Take exactly the dependencies from your root `mops.toml` `[dependencies]` section (excluding `core`).
-         2. Parse each dependency name and version.
-         3. Look at exactly the file `.mops/<name>@<version>/mops.toml`.
-         4. Extract the `moc` version from the `[requirements]` section (skip if no such section).
-         5. Take the maximum over all of them. This is your **Initial version**.
-       - If this calculated version is lower than the `moc` version currently set in your root `mops.toml` `[requirements]` section, use your current version instead.
+        - Identify the maximum `moc` version required by all **regular dependencies** (those in `[dependencies]`), EXCLUDING the `core` package.
+        - To do this:
+            1. Take exactly the dependencies from your root `mops.toml` `[dependencies]` section (excluding `core`).
+            2. Parse each dependency name and version.
+            3. Look at exactly the file `.mops/<name>@<version>/mops.toml`.
+            4. Extract the `moc` version from the `[requirements]` section (skip if no such section).
+            5. Take the maximum over all of them. This is your **Initial version**.
+        - If this calculated version is lower than the `moc` version currently set in your root `mops.toml` `[requirements]` section, use your current version instead.
     2. **Check `core` requirement:** Identify the exact version of the `core` package from the `[dependencies]` section of your root `mops.toml`. After running `mops install`, look at the `moc` version in the `[requirements]` section of `.mops/core@<version>/mops.toml` (where `<version>` is the exact version of core under [dependency] section in our main mops.toml).
     3. **Iterative Validation (if `core` requirement is higher):**
        If the `core`'s `moc` requirement is greater than your initial version, you MUST find the minimum version between them that works.
@@ -348,7 +348,8 @@ Search for GitHub Actions workflows (e.g., `.github/workflows/*.yml`).
 Follow its instructions to create or update a comprehensive CI workflow (usually `.github/workflows/ci.yml`) that includes tests, benchmarks, and formatting checks.
 
 **If the `motoko-github-ci-workflow` skill is NOT installed:**
-Create or update a consolidated GitHub Actions workflow (usually `.github/workflows/ci.yml`) that includes both code formatting checks and tests.
+1. **Optimize `mops.toml`**: If `pocket-ic` is missing from the `[toolchain]` section, add `pocket-ic = "9.0.3"` ONLY if the package has tests and/or benchmarks and you have verified that tests and benchmarks work correctly with `pocket-ic` (some specific code may require a full `dfx`/`icp` environment).
+2. Create or update a consolidated GitHub Actions workflow (usually `.github/workflows/ci.yml`) that includes both code formatting checks and tests.
 
 If no CI exists, create `.github/workflows/ci.yml` with the following content:
 
@@ -396,7 +397,7 @@ jobs:
 ### Step 10 — Bump the version
 
 1. Open root `mops.toml` and increment the **patch** version. For example, if the
-current version is `1.2.3`, change it to `1.2.4`.
+   current version is `1.2.3`, change it to `1.2.4`.
 
 ```toml
 [package]
@@ -469,6 +470,8 @@ Ready for review. Run `git push -u origin HEAD` to push.
 8. **Adding Compiler Checks to CI.** Do not include `moc --check` in the CI configuration. This check should only be performed by the agent during the maintenance process to fix warnings, as different CI environments might have different compiler versions that could cause unexpected failures for the end user.
 
 9. **Including toolchain or dev-dependency bumps in CHANGELOG.** Never include `[toolchain]` or `[dev-dependencies]` bumps in the CHANGELOG. They clutter the history with internal development details that do not affect the package's consumers. Only include `[requirements]` or `[dependencies]` if they were explicitly upgraded.
+
+10. **Missing `pocket-ic` in toolchain.** If benchmarks exist but `pocket-ic` is missing from `mops.toml`, `mops bench` will fail in CI unless `dfx` is installed. Ensure `pocket-ic` is configured in `mops.toml` (Step 9c) ONLY if the conditions for its use are met (tests/benchmarks compatible with `pocket-ic`).
 
 ## Verify It Works
 

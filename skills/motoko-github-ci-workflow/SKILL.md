@@ -47,7 +47,9 @@ For general information on GitHub Actions, refer to the [GitHub Actions Document
 
 ### Step 1 — Optimize `mops.toml`
 
-Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing, add it with version `9.0.3`. If it is already present, keep the existing version:
+Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing, add it with version `9.0.3` ONLY if the package has tests and/or benchmarks and you have verified that tests and benchmarks work correctly with `pocket-ic` (some specific code may require a full `dfx`/`icp` environment).
+
+If it is already present, keep the existing version:
 
 ```toml
 [toolchain]
@@ -107,7 +109,7 @@ jobs:
         run: mops test  # Omit this step if the package has no tests
 
       - name: Run benchmarks
-        run: mops bench --replica pocket-ic  # Omit this step if the package has no benchmarks
+        run: mops bench  # Omit this step if the package has no benchmarks
 
   fmt:
     name: Formatting Check
@@ -216,7 +218,7 @@ If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), ad
 ## Common Pitfalls
 
 1. **Outdated Node version.** Prettier and some Motoko tools require recent Node.js versions. Always use `latest` or at least `v22` in CI.
-2. **Missing `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow. If missing, always add version `9.0.3`.
+2. **Missing `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow. If missing, add version `9.0.3` ONLY if the project meets the criteria (tests/benchmarks present, verified compatibility).
 3. **Slow `dfx` installation.** Avoid installing `dfx` unless absolutely necessary (e.g., for E2E tests or Candid comparisons). Use `dfinity/setup-dfx@main` instead of shell scripts.
 4. **Not showing versions.** Always include a step to show `mops` and `moc` versions. This helps in debugging CI issues.
 5. **Not using parallel jobs.** Running formatting and tests in the same job is slower. Use separate jobs so GitHub runs them in parallel.
