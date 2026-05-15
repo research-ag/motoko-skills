@@ -47,7 +47,9 @@ For general information on GitHub Actions, refer to the [GitHub Actions Document
 
 ### Step 1 — Optimize `mops.toml`
 
-Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing, add it with version `9.0.3`. If it is already present, keep the existing version:
+Before adding the CI, ensure `mops.toml` is configured for a fast CI run. Check the `[toolchain]` section. If `pocket-ic` is missing, add it with version `9.0.3` ONLY if the package has tests and/or benchmarks and you have verified that tests and benchmarks work correctly with `pocket-ic` (some specific code may require a full `dfx`/`icp` environment).
+
+If it is already present, keep the existing version:
 
 ```toml
 [toolchain]
@@ -55,6 +57,8 @@ pocket-ic = "9.0.3"
 ```
 
 *Rationale: This allows `mops bench` to run without installing the full `dfx` SDK, significantly speeding up the workflow. Version 9.0.3 is our recommended stable version when introducing the tool; however, if the project already specifies a version, we respect that to avoid breaking changes.*
+
+Also, check if `mops.toml` contains a `files` field under `[package]`. If it does, do NOT modify it. Trying to be smart about the `files` field can lead to unintended side effects. Instead, report its current configuration to the user and warn them if it seems to be missing important directories (like `examples/`) or if it includes unsupported extensions (only `.mo`, `.did`, `.md`, and `.toml` are allowed for `mops publish`).
 
 ### Step 2 — Create or Update the GitHub CI Workflow
 
@@ -105,7 +109,7 @@ jobs:
         run: mops test  # Omit this step if the package has no tests
 
       - name: Run benchmarks
-        run: mops bench --replica pocket-ic  # Omit this step if the package has no benchmarks
+        run: mops bench  # Omit this step if the package has no benchmarks
 
   fmt:
     name: Formatting Check
@@ -127,21 +131,28 @@ jobs:
 
 ### Step 3 — Handle Examples and Canisters (Optional)
 
-#### If the repo has examples that are canisters:
+#### If the repo has examples (or example) that are canisters:
 Add a step to the `test` job (or a new job) to build examples. Use the tool already present in the project or `icp-cli` for new ones. Omit this section if no examples/canisters need building.
 
 ```yaml
       - name: Build examples
         run: |
-          # Detect and build examples
+          # Detect and build examples/example
+          EXAMPLES_DIR=""
           if [ -d "examples" ]; then
-            cd examples
+            EXAMPLES_DIR="examples"
+          elif [ -d "example" ]; then
+            EXAMPLES_DIR="example"
+          fi
+
+          if [ -n "$EXAMPLES_DIR" ]; then
+            cd "$EXAMPLES_DIR"
             if [ -f "mops.toml" ]; then
               mops install
             fi
             
             # Use icp if it exists, otherwise fallback to dfx if dfx.json is present
-            if command -v icp >/dev/null; then
+            if [ -f "icp.yaml" ] && command -v icp >/dev/null; then
               icp build --all
             elif [ -f "dfx.json" ]; then
               # Only run dfx build if dfx is already installed in this job
@@ -173,7 +184,7 @@ Comparing `.did` files often requires `didc` to check the latest interface.
 ```yaml
       - name: Build canisters
         run: |
-          if command -v icp >/dev/null; then
+          if [ -f "icp.yaml" ] && command -v icp >/dev/null; then
             icp build
           else
             dfx build
@@ -207,7 +218,7 @@ If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), ad
 ## Common Pitfalls
 
 1. **Outdated Node version.** Prettier and some Motoko tools require recent Node.js versions. Always use `latest` or at least `v22` in CI.
-2. **Missing `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow. If missing, always add version `9.0.3`.
+2. **Missing `pocket-ic` version in toolchain.** If `pocket-ic` is not in `mops.toml`, `mops bench` will attempt to use `dfx`, which might not be installed, causing the CI to fail or be very slow. If missing, add version `9.0.3` ONLY if the project meets the criteria (tests/benchmarks present, verified compatibility).
 3. **Slow `dfx` installation.** Avoid installing `dfx` unless absolutely necessary (e.g., for E2E tests or Candid comparisons). Use `dfinity/setup-dfx@main` instead of shell scripts.
 4. **Not showing versions.** Always include a step to show `mops` and `moc` versions. This helps in debugging CI issues.
 5. **Not using parallel jobs.** Running formatting and tests in the same job is slower. Use separate jobs so GitHub runs them in parallel.
