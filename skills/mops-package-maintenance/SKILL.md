@@ -472,9 +472,17 @@ For `README.md` and every other `.md`:
 1. Check factual accuracy (versions, API names, examples).
 2. Fix outdated information; improve clarity, grammar, completeness.
 3. Add sections for new API surface from upgraded deps.
-4. Ensure `README.md` documents the formatter command, e.g.
-   `npx -y prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'`
-   (add a "Development" or "Formatting" section if missing).
+4. Ensure `README.md` documents the formatter command, as a code block
+   (add a "Development" or "Formatting" section if missing):
+   ```bash
+   npm install --no-save prettier prettier-plugin-motoko
+   npx prettier --plugin prettier-plugin-motoko --write '**/*.{mo,json,md}'
+   ```
+   Don't document `npx -y prettier --plugin prettier-plugin-motoko …`:
+   it fails in a clean checkout with `Cannot find package
+   'prettier-plugin-motoko'`, because Prettier resolves the plugin from
+   the project's `node_modules`, not from npx's cache (`npx -p …` fails
+   the same way).
 
 ### Step 9 — Formatting
 
@@ -637,6 +645,10 @@ Ready for review. Run `git push -u origin HEAD` to push.
 ```
 
 ### Step 12 — Check the publish (dry run)
+
+For the full release procedure (PR, CodeRabbit review, publish, merge,
+cleanup) follow the `motoko-mops-release` skill; this step covers the
+dry run only.
 
 ```bash
 mops publish --dry-run   # docs, tests and benchmarks, no registry contact
