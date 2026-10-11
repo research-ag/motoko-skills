@@ -94,6 +94,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false  # no job pushes; keep the token out of .git/config
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -145,6 +147,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false  # no job pushes; keep the token out of .git/config
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -281,7 +285,7 @@ If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), ad
 
 5. **`mops toolchain bin <tool>` installs the pinned tool itself.** It downloads the version pinned in `[toolchain]` if it isn't cached, so no `mops install` or `mops toolchain use` is needed before the `Make sure … is installed` steps (verified with an empty cache).
 6. **`--locked` everywhere mops installs.** Add `--locked` to every `mops install`, `mops test`, `mops bench`, `mops build` and `mops check` in the workflow, including steps that run in an `examples/` directory. `mops toolchain …` and `mops sources` don't install and don't accept it. A `--locked` failure in CI means a `mops.toml` changed without its `mops.lock`: run `mops install` locally and commit the lock. The lock is stale when `mops.toml`'s dependencies changed, or a local `path` dependency's `mops.toml` changed (e.g. `examples/` depending on `"../"`); a newer release on the registry does not make it stale, since versions are exact.
-7. **Missing `permissions`.** Without a top-level `permissions: contents: read`, the jobs get the repository's default token, often with write access. Add it unless a job really needs to write.
+7. **Missing `permissions`.** Without a top-level `permissions: contents: read`, the jobs get the repository's default token, often with write access. Add it unless a job really needs to write. Also set `persist-credentials: false` on every `actions/checkout` step: by default checkout leaves the token in the working copy's `.git/config`, where every later step — npm packages, the Prettier plugin, the mops toolchain — can read it. `permissions` limits what the token can do; `persist-credentials: false` keeps it out of reach. Omit it only in a job that pushes back to the repository.
 8. **Pin `pocket-ic` 15.0.0.** 16.1.0 adds about 20,000 instructions to every bench call that writes to the heap. The version doesn't affect CI speed: `caffeinelabs/setup-mops` caches `~/.cache/mops`, keyed by `mops.toml`, so a pinned binary is downloaded once per change of the pin.
 
 ## Verify It Works
