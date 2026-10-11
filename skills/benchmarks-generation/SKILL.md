@@ -114,8 +114,8 @@ Notes:
     - `rows` enumerate different operations or variants you measure (e.g., "encode", "decode").
     - `cols` enumerate different input categories (e.g., message sizes).
 - Runner contract
-    - You return a versioned record `Bench.V1(schema, run)`; the runner calls `run(rowIndex, colIndex)` many times to
-      record timings.
+    - You return a versioned record `Bench.V1(schema, run)`. `mops bench` calls `run(rowIndex, colIndex)` exactly
+      once per cell, row by row, all cells of a bench file in the same canister; `init()` runs once before.
     - Side effects/results inside `run` should be consumed (e.g., `ignore ...`) to prevent dead‑code elimination.
 
 ## Common Pitfalls
@@ -128,17 +128,62 @@ Notes:
     - Use `ignore` to consume return values; otherwise the compiler might drop the call as dead code.
 4. Non‑determinism and timing noise
     - Keep `run` free of logging/printing and random allocation; keep GC pressure comparable across rows.
-5. Repeated runs and mutating operations
-    - `bench-helper` calls `run(ri, ci)` many times per cell to gather
-      timing samples. If the measured operation mutates the captured input
-      (e.g. an in-place sort, an in-place hash update), the second call
-      onwards sees the *post-operation* state — for an in-place sort, the
-      already-sorted array from the previous call; for an in-place hash
-      update, the accumulator left behind by the previous call. Either
-      rebuild the input inside `run` (and accept the allocation cost as
-      part of the measurement) or document that the bench measures
-      repeated runs on a mutated/post-operation state rather than on a
-      freshly prepared input.
+5. Mutating operations and shared state
+    - Each cell runs once, but all cells share the canister's state. If
+      the measured operation mutates a captured input (an in-place sort,
+      a hasher's state), give every cell its own input in `init`, or
+      later cells measure on the state an earlier cell left behind. A
+      retaining operation (appending to a shared list) can also make
+      cells differ when the structure grows across a block boundary.
+
+## Reading the numbers (moc 2.0.0, incremental GC)
+
+- **Instructions** include the harness's call into your runner: ~70 for
+  a no-op cell with mops CLI ≤ 3.4.2, ~34 after caffeinelabs/mops#878.
+  A table of routines (`routines[ri][ci]()`) adds ~85 for the 2-D lookup
+  and the inner call; a "no-op function" column is the right baseline.
+- **Heap** is everything the cell allocated, temporaries and retained
+  memory combined. With mops CLI ≤ 3.4.2 every cell also shows a
+  constant ~35.5 KiB of harness overhead (mops#876): subtract a no-op
+  row. With #878 a no-op shows 0 B.
+- **Garbage Collection** is always 0 under the incremental GC (it never
+  collects inside a measured call), so it can't separate garbage from
+  retained memory. Measuring what a structure *retains* needs a
+  different approach (below).
+- Pin `pocket-ic` 15.0.0: 16.1.0 adds ~20,000 instructions to every call
+  that writes to the heap.
+
+## Asserting allocations in tests
+
+To guarantee that a function stays allocation-free, test it with
+`mops test` in wasi mode, where the GC never runs:
+
+```motoko
+// @testmode wasi
+import Prim "mo:prim";
+
+func allocDelta(f : () -> ()) : Nat {
+  f(); // warm-up: exclude one-time allocations
+  let before = Prim.rts_total_allocation();
+  f();
+  Prim.rts_total_allocation() - before;
+};
+
+assert allocDelta(func() { ignore myList.get(5) }) == 0;
+```
+
+Also assert that the helper detects an allocation (e.g.
+`Prim.Array_init<Nat>(8, 0)` gives `> 0`), so a wrong test mode can't
+pass silently. Capture-free lambdas are static; a lambda capturing
+test-local variables is allocated where it is created. Destructuring a
+tuple with a pattern (`let (a, b) = (x, y)`) allocates nothing.
+
+The *retained* size of a structure can't be read from the counters (no
+GC runs in wasi, and Motoko code can't trigger one). Compute it from
+the structure's layout instead: on the 64-bit heap an array is
+24 B + 8 B per slot, a `Blob` 24 B + its bytes. Check the formula
+against `rts_total_allocation` in a case that creates no garbage (e.g.
+an empty structure).
 
 ## More examples
 
