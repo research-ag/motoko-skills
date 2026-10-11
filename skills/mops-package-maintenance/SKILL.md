@@ -31,7 +31,10 @@ These rules are referenced from individual steps. Read them once.
   the `files` field, this is not hands-off: if it's missing, add it
   with `mops toolchain use pocket-ic <version>` (mops's own error
   names a concrete version, e.g. `15.0.0`) the same way `[toolchain]
-  moc` is actively managed.
+  moc` is actively managed. **Pin `15.0.0`, not `16.1.0`:** 16.1.0
+  adds about 20,000 instructions to every bench call that writes to
+  the heap (a single `Bool` field write: 241 → 20,237), which makes
+  small cells meaningless.
 - **Benchmarks should measure optimized Wasm — configure `[optimize]`
   and pin `wasm-opt`.** `mops bench` (and `mops build`) only run
   Binaryen's `wasm-opt` when an `[optimize]` section exists in
@@ -43,6 +46,32 @@ These rules are referenced from individual steps. Read them once.
   wasm-opt` pin or the build fails before compiling. **If the package
   has benchmarks and `[optimize]` is missing, add both** during
   maintenance (see Step 5) — don't leave this for the user to notice.
+  Don't add `args = ["--all-features"]` to `[optimize]`: wasm-opt
+  already reads the features moc declares in the module, and
+  `--all-features` lets it emit features the IC rejects (GC,
+  multi-memory, relaxed SIMD, …).
+- **Commit `mops.lock`** — for libraries as well as applications. The
+  mops docs (https://docs.mops.one/mops.lock) reversed the earlier
+  advice to ignore it: the lockfile keeps your own CI reproducible and
+  has no effect on consumers. Remove `mops.lock` from `.gitignore`,
+  regenerate it once (delete it, run `mops install`), commit it
+  together with the lockfile of every nested project (`examples/`
+  etc.), and run CI with `--locked` (see the CI skill).
+- **moc 2.0.0 specifics** (when moving `[toolchain] moc` to 2.x):
+  - Legacy persistence and the copying/compacting/generational GCs are
+    gone: drop `[moc] args = ["--legacy-persistence"]` and any
+    `--copying-gc`.
+  - Actors are persistent by default: moc 2 warns that `persistent` is
+    redundant (M0217), but moc 1.x *requires* it (M0220). Tests and
+    examples written for moc 2 therefore don't compile on 1.x — fine,
+    since they run on the toolchain moc; only `src/` must satisfy
+    `[requirements] moc`.
+  - Dot notation on a function returning `async*` only resolves on
+    moc 2. Applying the M0236 autofix to such calls raises
+    `[requirements] moc` to `2.0.0` — decide explicitly, or keep the
+    module-style call.
+  - The M0236 autofix turns `x |> M.f(_)` into `x |> _.f()`. Rewrite
+    that to `x.f()`; keep the pipe only where `_` is used twice.
 - **Hands-off fields in `mops.toml`:** never auto-edit `[package] files`
   or auto-add entries to `[toolchain]`. Report and warn instead.
   **Exceptions: `[toolchain] pocket-ic` and `[optimize]` /
@@ -168,6 +197,10 @@ Update versions for every outdated entry in `[dependencies]` and
       fi
       ```
    5. If all pass, set `[requirements] moc = "X"` and stop.
+   A faster check for the requirement itself: consumers only compile
+   `src/`, so compile every `src/**/*.mo` with each candidate
+   (`<mops cache>/moc/<X>/moc --check $(mops sources) <file>`). Tests,
+   benches and examples only have to work with the toolchain moc.
 4. **Failure:** if even `core`'s required version fails, revert
    `[requirements] moc` to the initial value and warn the user.
 5. **Final sync:** restore `[toolchain] moc` to the latest version.
@@ -222,7 +255,6 @@ moc = "1.6.0"
   ```text
   .mops/
   .icp/
-  mops.lock        # for libraries only — mops install reminds you
   node_modules/
   package.json
   package-lock.json
@@ -234,6 +266,8 @@ moc = "1.6.0"
   Personal/editor files (`.idea`, `.vscode`, `.claude`, `.junie`,
   `.copilot`, `.tmp`, `*.swp`, `.DS_Store`) belong in the developer's
   global ignore, not here.
+- **`mops.lock`** — commit it (see Key Conventions). If `.gitignore`
+  contains `mops.lock`, delete that line.
 - **`package-lock.json`** — if absent, don't introduce it.
 - **`package.json`** — if present, ensure its `license` matches
   `mops.toml`. If absent, don't introduce it (and don't commit one
@@ -337,6 +371,28 @@ release chasing this.
 Significant regressions: note for the CHANGELOG but don't block the
 release unless the user asks.
 
+**Reading the numbers under moc 2.0.0** (enhanced orthogonal
+persistence, incremental GC — the only combination left):
+
+- **Heap** is the cell's allocation (temporaries and retained memory
+  combined). With mops CLI ≤ 3.4.2 it also contains a constant
+  ~35.5 KiB of harness overhead in every cell (caffeinelabs/mops#876;
+  fixed by #878): subtract the no-op row. After the fix, 0 B means
+  allocation-free.
+- **Garbage Collection** is always 0: the incremental GC never collects
+  inside a measured call. Neither `__motoko_gc_trigger` (it respects
+  the threshold) nor allocating ballast changes that. With #878 the
+  all-zero table is no longer printed.
+- **Instructions** of a no-op cell are ~70 with mops ≤ 3.4.2 (field
+  lookup of the cell function plus the call), ~34 with #878. A table of
+  routines (`routines[ri][ci]()`) adds ~85 more for the 2-D lookup and
+  the inner call; the "no-op function" column is the baseline to
+  subtract.
+- Numbers measured before moc 2 (legacy persistence, copying GC,
+  32-bit) aren't comparable: object sizes double on the 64-bit heap,
+  and the incremental GC's write barrier adds ~10% to pointer-heavy
+  code.
+
 ### Step 6 — Update the CHANGELOG
 
 Open or create `CHANGELOG.md` and add a section at the top for the
@@ -370,6 +426,14 @@ If no CHANGELOG exists, create one:
 
 Newest version on top. Match an existing CHANGELOG style if present.
 
+**Never rename or merge the section of a version that is already
+published.** Compare the headings with `mops info <package>` (its
+`versions` line); if a published version has no section, restore it
+from git history. Anything removed or changed incompatibly since the
+last *published* version — including functions that a published
+version added and the new one drops — goes into the new section as
+**Breaking**.
+
 ### Step 7 — Review and improve doc strings
 
 Skip if MOPS Documentation = 100% (see Key Conventions). Otherwise
@@ -388,7 +452,20 @@ If the `motoko-doc-strings` skill is installed, follow its checklist.
 
 ### Step 8 — Review README and other Markdown
 
-Skip if MOPS Documentation = 100%.
+**Always check the links**, even at 100% documentation: mops.one
+rewrites a relative link such as `examples/Main.mo` to
+`https://raw.githubusercontent.com/<org>/<repo>/master/examples/Main.mo`
+— raw text instead of a rendered page, and a link to a directory
+404s. Use absolute GitHub links that work on both sites:
+`https://github.com/<org>/<repo>/blob/main/<file>` and
+`…/tree/main/<dir>`. `bench/`, `test/`, `*.bench.mo` and `*.test.mo`
+are never uploaded (`mops publish` always excludes them, whatever
+`[package] files` says), so link them on GitHub if the README refers
+to them. Don't add notes like "renders properly on GitHub" — open the
+package's page on mops.one (Readme, Docs, Versions) and fix what
+doesn't render instead.
+
+Skip the rest of this step if MOPS Documentation = 100%.
 
 For `README.md` and every other `.md`:
 
@@ -455,6 +532,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Tests and Benchmarks
@@ -465,8 +545,8 @@ jobs:
         with:
           node-version: latest
       - uses: caffeinelabs/setup-mops@v1
-      - run: mops install
-      - run: mops test   # Omit if no tests
+      - run: mops install --locked
+      - run: mops test --locked   # Omit if no tests
       # Benchmarks: pocket-ic is the only bench runtime (mops CLI
       # v3.0.0 removed dfx-replica support). Requires [toolchain]
       # pocket-ic to be pinned in mops.toml. Omit both steps if there
@@ -477,7 +557,7 @@ jobs:
       # Conventions / Step 5) — otherwise omit this step too.
       - name: Make sure wasm-opt is installed
         run: mops toolchain bin wasm-opt
-      - run: mops bench
+      - run: mops bench --locked
 
   fmt:
     name: Formatting Check
@@ -496,6 +576,11 @@ jobs:
 Per Key Conventions, do **not** add a `moc --check` step to CI.
 
 ### Step 10 — Bump the version
+
+Check the last published version first (`mops info <package>`): the
+bump is relative to that, not to whatever `mops.toml` says. Don't
+release a package whose changes since then aren't visible to
+consumers (lockfile, CI, dev-dependencies only).
 
 1. In root `mops.toml`, increment the version. Default = **patch**
    (`1.2.3` → `1.2.4`). Bump **minor** (and reset patch) if any of:
@@ -539,6 +624,7 @@ at the start but `npm install` created them, do **not** commit them.
 ```bash
 git add -u
 git add .gitignore CHANGELOG.md .prettierrc .github/workflows/*.yml 2>/dev/null || true
+git add $(git ls-files --others --exclude-standard | grep -E '(^|/)mops\.lock$')
 git status
 git commit -m "chore: bump dependencies and prepare v<NEW_VERSION>"
 ```
@@ -549,6 +635,33 @@ Inform the user:
 Branch: chore/dependency-bump-YYYY-MM-DD
 Ready for review. Run `git push -u origin HEAD` to push.
 ```
+
+### Step 12 — Check the publish (dry run)
+
+```bash
+mops publish --dry-run   # docs, tests and benchmarks, no registry contact
+```
+
+- **Benchmarks are run, uploaded and compared by file name.** `mops
+  publish` benchmarks every `*.bench.mo` on disk, tracked or not: move
+  scratch bench files out of `bench/` first, or they get published.
+  mops.one compares each version's benchmarks with the previous
+  version's *by file name*; after a methodology change (moc major, GC,
+  persistence) renaming the bench files resets the baseline instead of
+  showing large, misleading percentages. Zero values show as `-`.
+- **mops CLI ≤ 3.4.2 + moc 2.0.0:** `mops publish` hard-codes the
+  copying GC for its benchmark run and fails with
+  `moc: unknown option '--legacy-persistence'` for any package with
+  benchmarks (caffeinelabs/mops#875, fixed by #877). Until a release
+  has the fix, publish with `--no-bench` (no benchmark upload) or
+  with a CLI built from the fix.
+- **Read the file list** the dry run prints. The default pattern
+  `**/*.mo` also uploads `examples/**/*.mo`.
+- **Identity:** `mops publish` signs with mops's own identity
+  (`mops user get-principal`), not dfx's; it must be an owner or
+  maintainer (`mops owner list`).
+- **Node:** if a real publish fails with `TrustError: Certificate
+  verification error` on Node 24, retry with Node 22.
 
 ## Common Pitfalls
 
@@ -568,12 +681,18 @@ Ready for review. Run `git push -u origin HEAD` to push.
    it just because `mops bench` "already works" without it — working
    and representative are different things.
 
+6. **zsh word splitting.** In zsh, an unquoted `$args` is *not* split
+   into words: `moc $(mops sources)` works, but `SRC=$(mops sources);
+   moc $SRC` passes one argument and moc prints its usage. Use
+   `${=SRC}`.
+
 ## Verify It Works
 
 ```bash
-mops install
-mops test
-mops bench
+mops install --locked
+mops test --locked
+mops bench --locked
+mops publish --dry-run
 ```
 
 All must succeed with no errors.
