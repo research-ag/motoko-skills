@@ -223,10 +223,18 @@ Comparing `.did` files often requires `didc` to check the latest interface.
           fi
 
       - name: Get didc
+        # Pin a didc-vX.Y.Z release; candid's "latest" release has no didc.
+        env:
+          DIDC_VERSION: didc-v0.6.2
         run: |
           mkdir -p /home/runner/bin
-          release=$(curl --silent "https://api.github.com/repos/dfinity/candid/releases/latest" | awk -F\" '/tag_name/ { print $4 }')
-          curl -fsSL https://github.com/dfinity/candid/releases/download/$release/didc-linux64 > /home/runner/bin/didc
+          tmpdir=$(mktemp -d)
+          base="https://github.com/dfinity/candid/releases/download/$DIDC_VERSION/didc-x86_64-unknown-linux-gnu.tar.xz"
+          curl -fsSL "$base" -o "$tmpdir/didc.tar.xz"
+          curl -fsSL "$base.sha256" | awk 'NF { print $1 "  didc.tar.xz" }' > "$tmpdir/didc.tar.xz.sha256"
+          (cd "$tmpdir" && sha256sum -c didc.tar.xz.sha256)
+          tar -xJf "$tmpdir/didc.tar.xz" -C "$tmpdir"
+          find "$tmpdir" -type f -name didc -exec cp {} /home/runner/bin/didc \;
           chmod +x /home/runner/bin/didc
           echo "/home/runner/bin" >> $GITHUB_PATH
 
@@ -236,6 +244,21 @@ Comparing `.did` files often requires `didc` to check the latest interface.
           # e.g., didc check -s did/my_canister.did .dfx/local/canisters/my_canister/my_canister.did
           didc check -s did/backend.did .dfx/local/canisters/backend/backend.did
 ```
+
+**Why didc is pinned.** Until 2025-12-18, dfinity/candid published didc
+together with the Candid UI on date-tagged releases (`YYYY-MM-DD`, assets
+`didc-linux64`, `didc-macos`, `didc-arm32`), so downloading
+`releases/latest/…/didc-linux64` worked. Since 2026-06-25
+(dfinity/candid#745), didc has its own release stream, built with
+cargo-dist on `didc-vX.Y.Z` tags (first one `didc-v0.6.2`), with assets
+named by target triple (`didc-x86_64-unknown-linux-gnu.tar.xz` plus
+`.sha256`, and an installer script). Date-tagged releases now contain only
+`candid_ui.wasm`. GitHub's "latest" release is whichever was published
+last, so as soon as a Candid UI release came out (2026-09-25), every CI
+that resolved `latest` got a 404. The two streams will keep alternating,
+so resolve neither `latest` nor the newest tag: pin a `didc-v*` version
+and bump it deliberately (`gh release list -R dfinity/candid`). The
+`.sha256` file ends with an empty line, hence the `NF` filter.
 
 ### Step 4 — Run End-to-End Tests
 If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), add a step to run them. This usually requires `dfx` and a running local replica or `pocket-ic`.
