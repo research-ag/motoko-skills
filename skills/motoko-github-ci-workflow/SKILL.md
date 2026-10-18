@@ -81,6 +81,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Read-only token: the jobs only check out and run tools. Without this,
+# the token inherits the repository default (often write), and that
+# token is exposed to third-party actions and npm packages.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Tests and Benchmarks
@@ -88,6 +94,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false  # no job pushes; keep the token out of .git/config
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -105,8 +113,11 @@ jobs:
           mops --version
           $(mops toolchain bin moc) --version
 
+      # --locked fails if mops.lock is missing or doesn't match mops.toml,
+      # instead of silently regenerating it (commit mops.lock; see the
+      # mops-package-maintenance skill).
       - name: Install dependencies
-        run: mops install
+        run: mops install --locked
 
       # Bench runtime: PocketIC is the only runtime `mops bench` supports
       # (dfx-replica support was removed in mops CLI v3.0.0). `[toolchain]
@@ -125,10 +136,10 @@ jobs:
         run: mops toolchain bin wasm-opt
 
       - name: Run tests
-        run: mops test  # Omit this step if the package has no tests. Note: `mops test` does not use pocket-ic.
+        run: mops test --locked  # Omit this step if the package has no tests. Note: `mops test` does not use pocket-ic.
 
       - name: Run benchmarks
-        run: mops bench  # Omit this step if the package has no benchmarks.
+        run: mops bench --locked  # Omit this step if the package has no benchmarks.
 
   fmt:
     name: Formatting Check
@@ -136,6 +147,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false  # no job pushes; keep the token out of .git/config
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -210,10 +223,18 @@ Comparing `.did` files often requires `didc` to check the latest interface.
           fi
 
       - name: Get didc
+        # Pin a didc-vX.Y.Z release; candid's "latest" release has no didc.
+        env:
+          DIDC_VERSION: didc-v0.6.2
         run: |
           mkdir -p /home/runner/bin
-          release=$(curl --silent "https://api.github.com/repos/dfinity/candid/releases/latest" | awk -F\" '/tag_name/ { print $4 }')
-          curl -fsSL https://github.com/dfinity/candid/releases/download/$release/didc-linux64 > /home/runner/bin/didc
+          tmpdir=$(mktemp -d)
+          base="https://github.com/dfinity/candid/releases/download/$DIDC_VERSION/didc-x86_64-unknown-linux-gnu.tar.xz"
+          curl -fsSL "$base" -o "$tmpdir/didc.tar.xz"
+          curl -fsSL "$base.sha256" | awk 'NF { print $1 "  didc.tar.xz" }' > "$tmpdir/didc.tar.xz.sha256"
+          (cd "$tmpdir" && sha256sum -c didc.tar.xz.sha256)
+          tar -xJf "$tmpdir/didc.tar.xz" -C "$tmpdir"
+          find "$tmpdir" -type f -name didc -exec cp {} /home/runner/bin/didc \;
           chmod +x /home/runner/bin/didc
           echo "/home/runner/bin" >> $GITHUB_PATH
 
@@ -223,6 +244,21 @@ Comparing `.did` files often requires `didc` to check the latest interface.
           # e.g., didc check -s did/my_canister.did .dfx/local/canisters/my_canister/my_canister.did
           didc check -s did/backend.did .dfx/local/canisters/backend/backend.did
 ```
+
+**Why didc is pinned.** Until 2025-12-18, dfinity/candid published didc
+together with the Candid UI on date-tagged releases (`YYYY-MM-DD`, assets
+`didc-linux64`, `didc-macos`, `didc-arm32`), so downloading
+`releases/latest/…/didc-linux64` worked. Since 2026-06-25
+(dfinity/candid#745), didc has its own release stream, built with
+cargo-dist on `didc-vX.Y.Z` tags (first one `didc-v0.6.2`), with assets
+named by target triple (`didc-x86_64-unknown-linux-gnu.tar.xz` plus
+`.sha256`, and an installer script). Date-tagged releases now contain only
+`candid_ui.wasm`. GitHub's "latest" release is whichever was published
+last, so as soon as a Candid UI release came out (2026-09-25), every CI
+that resolved `latest` got a 404. The two streams will keep alternating,
+so resolve neither `latest` nor the newest tag: pin a `didc-v*` version
+and bump it deliberately (`gh release list -R dfinity/candid`). The
+`.sha256` file ends with an empty line, hence the `NF` filter.
 
 ### Step 4 — Run End-to-End Tests
 If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), add a step to run them. This usually requires `dfx` and a running local replica or `pocket-ic`.
@@ -269,6 +305,11 @@ If the repository contains end-to-end tests (e.g., in `test/e2e` or similar), ad
 10. **Simultaneous tool installation.** Do not install both `dfx` and `icp-cli`. Stick to one.
 11. **Skipping existing tests.** If you are updating an existing CI, ensure it runs all tests and benchmarks found in the repo.
 12. **Unnecessary tool installation.** Do not install `dfx` or `icp-cli` for library packages that only run `mops test` with no benchmarks. If the package has benchmarks, `pocket-ic` IS required (it is the only `mops bench` runtime) — install it via `mops toolchain bin pocket-ic` in the bench job only (plus `wasm-opt` if `[optimize]` is set). Do not install `dfx` or `icp-cli` just to run `mops bench`.
+
+5. **`mops toolchain bin <tool>` installs the pinned tool itself.** It downloads the version pinned in `[toolchain]` if it isn't cached, so no `mops install` or `mops toolchain use` is needed before the `Make sure … is installed` steps (verified with an empty cache).
+6. **`--locked` everywhere mops installs.** Add `--locked` to every `mops install`, `mops test`, `mops bench`, `mops build` and `mops check` in the workflow, including steps that run in an `examples/` directory. `mops toolchain …` and `mops sources` don't install and don't accept it. A `--locked` failure in CI means a `mops.toml` changed without its `mops.lock`: run `mops install` locally and commit the lock. The lock is stale when `mops.toml`'s dependencies changed, or a local `path` dependency's `mops.toml` changed (e.g. `examples/` depending on `"../"`); a newer release on the registry does not make it stale, since versions are exact.
+7. **Missing `permissions`.** Without a top-level `permissions: contents: read`, the jobs get the repository's default token, often with write access. Add it unless a job really needs to write. Also set `persist-credentials: false` on every `actions/checkout` step: by default checkout leaves the token in the working copy's `.git/config`, where every later step — npm packages, the Prettier plugin, the mops toolchain — can read it. `permissions` limits what the token can do; `persist-credentials: false` keeps it out of reach. Omit it only in a job that pushes back to the repository.
+8. **Pin `pocket-ic` 15.0.0.** 16.1.0 adds about 20,000 instructions to every bench call that writes to the heap. The version doesn't affect CI speed: `caffeinelabs/setup-mops` caches `~/.cache/mops`, keyed by `mops.toml`, so a pinned binary is downloaded once per change of the pin.
 
 ## Verify It Works
 

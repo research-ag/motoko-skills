@@ -114,8 +114,8 @@ Notes:
     - `rows` enumerate different operations or variants you measure (e.g., "encode", "decode").
     - `cols` enumerate different input categories (e.g., message sizes).
 - Runner contract
-    - You return a versioned record `Bench.V1(schema, run)`; the runner calls `run(rowIndex, colIndex)` many times to
-      record timings.
+    - You return a versioned record `Bench.V1(schema, run)`. `mops bench` calls `run(rowIndex, colIndex)` exactly
+      once per cell, row by row, all cells of a bench file in the same canister; `init()` runs once before.
     - Side effects/results inside `run` should be consumed (e.g., `ignore ...`) to prevent dead‑code elimination.
 
 ## Common Pitfalls
@@ -128,17 +128,120 @@ Notes:
     - Use `ignore` to consume return values; otherwise the compiler might drop the call as dead code.
 4. Non‑determinism and timing noise
     - Keep `run` free of logging/printing and random allocation; keep GC pressure comparable across rows.
-5. Repeated runs and mutating operations
-    - `bench-helper` calls `run(ri, ci)` many times per cell to gather
-      timing samples. If the measured operation mutates the captured input
-      (e.g. an in-place sort, an in-place hash update), the second call
-      onwards sees the *post-operation* state — for an in-place sort, the
-      already-sorted array from the previous call; for an in-place hash
-      update, the accumulator left behind by the previous call. Either
-      rebuild the input inside `run` (and accept the allocation cost as
-      part of the measurement) or document that the bench measures
-      repeated runs on a mutated/post-operation state rather than on a
-      freshly prepared input.
+5. Mutating operations and shared state
+    - Each cell runs once, but all cells share the canister's state. If
+      the measured operation mutates a captured input (an in-place sort,
+      a hasher's state), give every cell its own input in `init`, or
+      later cells measure on the state an earlier cell left behind. A
+      retaining operation (appending to a shared list) can also make
+      cells differ when the structure grows across a block boundary.
+
+## Reading the numbers (moc 2.0.0, incremental GC)
+
+- **Instructions** include the harness's call into your runner: ~70 for
+  a no-op cell with mops CLI ≤ 3.4.2, ~34 after caffeinelabs/mops#878.
+  A table of routines (`routines[ri][ci]()`) adds ~85 for the 2-D lookup
+  and the inner call; a "no-op function" column is the right baseline.
+- **Heap** is everything the cell allocated, temporaries and retained
+  memory combined. With mops CLI ≤ 3.4.2 every cell also shows a
+  constant ~35.5 KiB of harness overhead (mops#876): subtract a no-op
+  row. With #878 a no-op shows 0 B.
+- **Garbage Collection** is always 0 under the incremental GC (it never
+  collects inside a measured call), so it can't separate garbage from
+  retained memory. Measuring what a structure *retains* needs a
+  different approach (see "Measuring retained memory").
+- Pin `pocket-ic` 15.0.0: 16.1.0 adds ~20,000 instructions to every call
+  that writes to the heap.
+
+## Asserting allocations in tests
+
+To guarantee that a function stays allocation-free, test it with
+`mops test` in wasi mode, where the GC never runs:
+
+```motoko
+// @testmode wasi
+import Prim "mo:prim";
+
+func allocDelta(f : () -> ()) : Nat {
+  f(); // warm-up: exclude one-time allocations
+  let before = Prim.rts_total_allocation();
+  f();
+  Prim.rts_total_allocation() - before;
+};
+
+assert allocDelta(func() { ignore myList.get(5) }) == 0;
+```
+
+Also assert that the helper detects an allocation (e.g.
+`Prim.Array_init<Nat>(8, 0)` gives `> 0`), so a wrong test mode can't
+pass silently. Capture-free lambdas are static; a lambda capturing
+test-local variables is allocated where it is created. Destructuring a
+tuple with a pattern (`let (a, b) = (x, y)`) allocates nothing.
+
+## Measuring retained memory
+
+What a data structure occupies on the heap after it is built (its
+*retained* memory) can't be read from the Heap column directly:
+
+- Since mops CLI 3.5.0 the Heap column is the cell's allocation, read
+  in a synchronous window around the cell, for every GC. Build garbage
+  counts in full: a cell that allocates 2 MiB and drops it shows 2 MiB.
+  Persistent trees (red-black trees, path copying) produce many times
+  their own size in garbage while being built.
+- The incremental GC (the only one on the 64-bit heap, moc ≥ 0.15) can't
+  be forced to finish a cycle inside a cell, and it doesn't start one on
+  an idle heap. No moc version combines the 64-bit heap with a copying
+  or compacting GC.
+- mops CLI ≤ 3.4.2 with a legacy GC (`--gc compacting`, moc 1.x) still
+  reads the heap after the cell's message, after the forced collection:
+  that is the retained heap, but only on the 32-bit heap.
+
+**The trick: build in `init`, copy in the cell.** Build the structure
+once in `init`, where its build garbage doesn't count. The cell makes a
+*garbage-free structural copy* of it (new nodes, the same keys and
+values shared) and assigns the copy to a variable that outlives the
+cell, instead of `ignore`-ing it. The copy allocates exactly the
+structure's own object graph, so the Heap column is its retained
+memory, on either heap.
+
+```motoko
+let keys = Data.keys(seed, N); // shared by all rows
+let tree = Data.build(keys); // build garbage stays in init
+let held = Prim.Array_init<Any>(rows.size(), ());
+Bench.V1(schema, func(ri : Nat, _ : Nat) {
+  held[ri] := switch (ri) {
+    case 0 Prim.Array_tabulate<Blob>(N, func(i) = keys[i]); // reference row
+    case _ copyTree(tree);
+  };
+});
+```
+
+- The copy must be garbage-free: recreate every node, array and tuple
+  the original has, with `while` loops and `Prim.Array_init`, not with
+  `tabulate`/`map` closures per node. Library `clone`s may not qualify:
+  `core`'s `Map.clone` goes through `mapNode` and allocates a closure
+  per node (7% too much for a B-tree of order 32); the `map` package's
+  `clone` is exact, `core`'s `pure/Map.map` within a constant 28 B.
+- Keep the keys out of the measurement: share them between all rows and
+  add a reference row with an array of the same keys; the difference
+  divided by N is the overhead per entry.
+- Validate the copy once on the 32-bit heap: set `[toolchain] moc` to a
+  1.x version, run the copy bench with mops 3.5.x (allocation) and a
+  bench that keeps the built structure with `npx ic-mops@3.4.2 bench
+  --gc compacting` (retained heap). Add a control row that allocates
+  and drops garbage: it must show 0 B (apart from a constant ~272 B of
+  harness) under 3.4.2. The copies matched to within a constant 16 B
+  (the closure of the reference row's `tabulate`).
+- Use `--save` and read `.bench/<name>.json` for exact bytes; the
+  tables round to 0.01 KiB.
+
+**From 32-bit to 64-bit.** For objects without byte payloads (no `Blob`
+or `Text` contents), every 32-bit word becomes 8 bytes and the
+incremental GC adds a forwarding pointer per object:
+`size64 = 2 × size32 + 8 B × objects`. This predicts 64-bit numbers
+from 32-bit ones and, the other way round, gives the number of objects
+per entry (a red-black tree node `?(color, l, k, r)`: 1 object,
+24 → 56 B; `core` `pure/Map`: 2 objects, a variant and its tuple).
 
 ## More examples
 
