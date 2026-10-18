@@ -1,6 +1,6 @@
 ---
 name: motoko-mops-release
-description: Release a Motoko mops package from a prepared dev branch — push it, open a PR, check benchmarks, the package's mops.one pages and a publish dry run, get a CodeRabbit review and act on it, publish after the maintainer's confirmation, verify the published page, merge, and clean up.
+description: Release a Motoko mops package from a prepared dev branch — push it, open a PR, check benchmarks, the package's mops.one pages and a publish dry run, get a CodeRabbit review and act on it, publish after the maintainer's confirmation, verify the published page, merge, create the GitHub release, and clean up.
 ---
 
 # Mops Package Release
@@ -231,7 +231,26 @@ gh pr merge <pr> -R <org>/<repo> --squash --delete-branch    # use a method the 
 
 All checks green and all conversations resolved first.
 
-### 16. Clean up
+### 16. Create the GitHub release
+
+After the merge, tag the squash-merge commit on `main` and create the
+release. Follow the repo's convention (`gh release list -R <org>/<repo>`;
+research-ag uses tag `<version>` without `v` and title `v<version>`):
+
+```bash
+gh release create <version> -R <org>/<repo> --target <merge-commit-sha> \
+  --title v<version> --notes-file <notes.md> --latest
+```
+
+- The notes are the version's CHANGELOG section at the target commit, the
+  same text mops.one shows as release notes.
+- Check first that `mops.toml` at the target commit has the published
+  version.
+- When several versions were published from one PR, tag each version's own
+  commit and mark only the newest as Latest (`--latest=false` for the
+  others).
+
+### 17. Clean up
 
 After a squash merge, git doesn't see the branch as merged. Compare
 content instead of ancestry before deleting anything:
